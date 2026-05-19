@@ -20,9 +20,9 @@ from deap import base, creator, tools
 import cellpylib as cpl
 
 #Imports paralelización
-#import multiprocessing
-#from multiprocessing import Pool
-from joblib import Parallel, delayed
+#Imports paralelización
+import multiprocessing
+from joblib import Parallel, delayed 
 import time
 import os
 
@@ -30,6 +30,14 @@ import os
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import mean_squared_error
 from sklearn.metrics import mutual_info_score
+from sklearn.metrics import normalized_mutual_info_score
+from scipy.ndimage import gaussian_filter
+
+#Metricas de similitd
+from skimage.metrics import structural_similarity as ssim
+from skimage.metrics import mean_squared_error
+from sklearn.metrics import mutual_info_score
+from scipy.ndimage import gaussian_filter
 
 from configuration import FrameworkConfig, CAConfig, GAConfig
 
@@ -38,6 +46,11 @@ from configuration import FrameworkConfig, CAConfig, GAConfig
 
 def create_transition_rule(individual, ca_size_1, ca_size_2, ca_config):
     rule_table = np.array(individual, dtype=int)
+    
+    # Extraemos dimensiones de forma segura
+    n = ca_config.ca_size[0]
+    m = ca_config.ca_size[1] if len(ca_config.ca_size) > 1 else 1
+
     if ca_config.num_states == 2:
         if ca_config.ca_neighborhood == 'von Neumann':
             powers = np.array([16, 8, 4, 2, 1], dtype=int)
@@ -63,12 +76,14 @@ def create_transition_rule(individual, ca_size_1, ca_size_2, ca_config):
             powers = np.array([4**i for i in range(2*int(ca_config.ca_neighborhood), -1, -1)], dtype=int)
     
     def my_rule(cells, r, t):
-        if ca_config.ca_size[1] == 1:
-            if r == 0:
-                return ca_config.ca_row0_state[0]
-            elif r == ca_config.ca_size[0] - 1:
-                return ca_config.ca_row0_state[-1]
-            
+        if m == 1:
+            if ca_config.ca_horizontal_boundary_conditions == 'fixed':
+                if r == 0:
+                    # Usamos .item() o int() para extraer el número puro del array de NumPy
+                    return int(ca_config.ca_row0_state[0])
+                elif r == n - 1:
+                    # Asegúrate de usar ca_rowN_state para el extremo final
+                    return int(ca_config.ca_rowN_state[0])
         else:
 
             if ca_config.ca_horizontal_boundary_conditions == 'customized':
@@ -77,9 +92,9 @@ def create_transition_rule(individual, ca_size_1, ca_size_2, ca_config):
 
             elif ca_config.ca_horizontal_boundary_conditions == 'fixed':
                 if r[0] == 0:
-                    return ca_config.ca_row0_state[r[1]]
-                elif r[0] == ca_config.ca_size[0] - 1:
-                    return ca_config.ca_rowN_state[r[1]]
+                    return int(ca_config.ca_row0_state[r[1]])
+                elif r[0] == n - 1:
+                    return int(ca_config.ca_rowN_state[r[1]])
                 
 
             if ca_config.ca_vertical_boundary_conditions == 'customized':
@@ -88,9 +103,9 @@ def create_transition_rule(individual, ca_size_1, ca_size_2, ca_config):
 
             elif ca_config.ca_vertical_boundary_conditions == 'fixed':
                 if r[1] == 0:
-                    return ca_config.ca_column0_state[r[0]]
-                elif r[1] == ca_config.ca_size[1] - 1:
-                    return ca_config.ca_columnN_state[r[0]]
+                    return int(ca_config.ca_column0_state[r[0]])
+                elif r[1] == m - 1:
+                    return int(ca_config.ca_columnN_state[r[0]])
                 
         if ca_config.ca_neighborhood == 'von Neumann':
             neighbors = np.array([
@@ -126,7 +141,9 @@ def create_transition_rule(individual, ca_size_1, ca_size_2, ca_config):
 
 '''Metrica accuracy'''
 def accuracy_metric(ca_final, target, ca_config):
-    return (np.sum(ca_final == target)/(ca_config.ca_size[0]*ca_config.ca_size[1]))
+    n = ca_config.ca_size[0]
+    m = ca_config.ca_size[1] if len(ca_config.ca_size) > 1 else 1
+    return (np.sum(ca_final == target)/(n * m))
 
 '''Metrica Jaccard'''
 def jaccard_metric(ca_final, target, config):
@@ -135,59 +152,47 @@ def jaccard_metric(ca_final, target, config):
         intersection = np.sum((ca_final == state) & (target == state))
         union = np.sum((target == state) | (ca_final == state))
         if union == 0:
-            jaccard_states.append(1.0)  # Si no hay elementos en la unión, consideramos Jaccard como 1
+            jaccard_states.append(1.0)
         else:
             jaccard_states.append(intersection / union)
             
-    if config.ca.num_states == 2:
-        w0 = config.ga.weights_states_Jaccard[0]
-        w1 = config.ga.weights_states_Jaccard[1]
-        weighted_jaccard = (jaccard_states[0] * w0 + jaccard_states[1] * w1) / (w0 + w1)
-        return weighted_jaccard  
+    pesos = config.ga.weights_states_Jaccard
     
-    if config.ca.num_states == 3:
-        w0 = config.ga.weights_states_Jaccard[0]
-        w1 = config.ga.weights_states_Jaccard[1]
-        w2 = config.ga.weights_states_Jaccard[2]
-        weighted_jaccard = (jaccard_states[0] * w0 + jaccard_states[1] * w1 + jaccard_states[2] * w2) / (w0 + w1 + w2)
-        return weighted_jaccard  
- 
-    else:
-        return np.mean(jaccard_states)
+    if len(pesos) == config.ca.num_states:
+        weighted_sum = sum(jaccard_states[i] * pesos[i] for i in range(config.ca.num_states))
+        return weighted_sum / sum(pesos)
+    
+    return np.mean(jaccard_states)
+    
+def crear_paleta_rgb(colores):
+    """
+    Convierte una lista de colores HEX ["#FF0000", "#FFFFFF"] 
+    en una paleta Numpy RGB de shape (N, 3) tipo uint8.
+    """
+    rgb_list = []
+    for color_hex in colores:
+        color_hex = color_hex.lstrip('#')
+        # Partimos el string de 2 en 2 y lo pasamos de base 16 a base 10 (entero)
+        rgb = [int(color_hex[i:i+2], 16) for i in (0, 2, 4)]
+        rgb_list.append(rgb)
+        
+    return np.array(rgb_list, dtype=np.uint8)
 
 '''Métrica SSIM'''
 def ssim_metric(ca_final, target, ca_config):
-    return ssim(ca_final, target, data_range = ca_config.num_states - 1, win_size=5) 
+    # SSIM no tiene sentido o falla en 1D con win_size=5 si el array es pequeño o plano
+    if len(ca_config.ca_size) == 1 or ca_config.ca_size[1] == 1:
+        return 0.0
+        
+    colores_rgb = crear_paleta_rgb(ca_config.colors)
+    img_ca_rgb = colores_rgb[ca_final]
+    img_target_rgb = colores_rgb[target]
+
+    return ssim(img_ca_rgb, img_target_rgb, channel_axis=-1, data_range=255, win_size=5)
 
 '''Metrica informacion mutua'''
 def mutual_information_metric(ca_final, target, ca_config):
-    N = ca_config.ca_size[0]*ca_config.ca_size[1]
-    h_x = 0
-    h_y = 0
-    for i in range(ca_config.num_states):
-        p_ca = np.sum(ca_final == i)/N
-        p_target = np.sum(target == i)/N
-
-        if p_ca != 0: log_p_ca = math.log(p_ca)
-        else: log_p_ca = 0
-        if p_target != 0: log_p_target = math.log(p_target)
-        else: log_p_target = 0
-
-        h_x = h_x - p_ca*log_p_ca
-        h_y = h_y - p_target*log_p_target
-
-    h_xy = 0
-
-    for i in range(ca_config.num_states):
-        for j in range(ca_config.num_states):
-            p_ij = np.sum((ca_final == i) & (target == j))/N
-            if (p_ij != 0): log_p_ij = math.log(p_ij)
-            else: log_p_ij = 0
-            h_xy = h_xy + p_ij*log_p_ij
-
-    if (h_x + h_y) == 0:
-        return 0
-    return 2*(h_x + h_y + h_xy)/(h_x + h_y) 
+    return normalized_mutual_info_score(target.flatten(), ca_final.flatten(), average_method='arithmetic')
 
 '''Generación aleatoria de autómatas, teniendo en cuenta la frontera fija'''
 def generate_CAs(ca_num, num_states, ca_size_1, ca_size_2, ca_config):
@@ -197,8 +202,13 @@ def generate_CAs(ca_num, num_states, ca_size_1, ca_size_2, ca_config):
     
     if ca_size_2 == 1:
         for i in range(ca_num):
-            ca = np.random.randint(0, num_states, size=ca_size_1)
-            ca = np.expand_dims(ca, axis=0)
+            if ca_config.ca_initial_state is not None:
+                # IMPORTANTE: Forzamos a que sea plano (N,) y luego CellPyLib 1D espera (1, N)
+                ca = np.copy(ca_config.ca_initial_state).flatten()
+            else:
+                ca = np.random.randint(0, num_states, size=ca_size_1)
+            
+            ca = ca.reshape(1, -1) 
             CAs.append(ca)
 
     else:
@@ -227,9 +237,13 @@ def generate_CAs(ca_num, num_states, ca_size_1, ca_size_2, ca_config):
 '''Evolucion de los autómatas de la lista CAs mediante mi_regla'''
 def evolved_CAs(CAs, mi_regla, ca_config):
     evolved_CAs_list = []
-    if ca_config.ca_size[1] == 1:
+    m = ca_config.ca_size[1] if len(ca_config.ca_size) > 1 else 1
+
+    if m == 1:
         for i in range(len(CAs)):
-            evolved_CA = cpl.evolve(CAs[i], timesteps=ca_config.ca_timesteps, apply_rule=mi_regla, r=int(ca_config.ca_neighborhood))
+            # Limpiamos dimensiones extra de tamaño 1 para evitar el error de desempaquetado en cellpylib
+            ca_input = CAs[i].squeeze().reshape(1, -1)
+            evolved_CA = cpl.evolve(ca_input, timesteps=ca_config.ca_timesteps, apply_rule=mi_regla, r=int(ca_config.ca_neighborhood))
             evolved_CAs_list.append(evolved_CA)
     else:
         for i in range(len(CAs)):
@@ -248,32 +262,65 @@ def rule_and_evolve(ca_num, individual, CAs, ca_size_1, ca_size_2, ca_config):
     return evolved_CAs(CAs, mi_regla, ca_config)
 
 def calculate_fitness(ca, config):
-    '''Media ponderada entre SSIM, Jaccard y Accuracy'''
-    fit = (config.ga.weight_SSIM * ssim_metric(ca[-1], config.ca.target_state, config.ca) + 
-           config.ga.weight_Jaccard * jaccard_metric(ca[-1], config.ca.target_state, config) + 
-           config.ga.weight_accuracy * accuracy_metric(ca[-1], config.ca.target_state, config.ca) + 
-           config.ga.weight_mutual_information * mutual_information_metric(ca[-1], config.ca.target_state, config.ca))
+    if (config.ga.gaussian_filter):
+       
+        ca_suavizado = gaussian_filter(ca[-1], sigma=config.ga.gaussian_sigma)
+        target_suavizado = gaussian_filter(config.ca.target_state, sigma=config.ga.gaussian_sigma)
+        
+       
+        
+        # SSIM funciona perfecto con floats
+        score_ssim = ssim(ca_suavizado, target_suavizado, data_range=1.0, win_size=5)
+        
+        # Para Jaccard y Accuracy, comparamos si las zonas de "alta densidad" coinciden
+        # Binarizamos los gradientes suavizados
+        ca_bin = (ca_suavizado > 0.5).astype(int)
+        target_bin = (target_suavizado > 0.5).astype(int)
+        
+        score_jaccard = jaccard_metric(ca_bin, target_bin, config)
+        score_accuracy = accuracy_metric(ca_bin, target_bin, config.ca)
+        score_mi = mutual_information_metric(ca_bin, target_bin, config.ca)
+        fit = (config.ga.weight_SSIM * score_ssim + 
+               config.ga.weight_Jaccard * score_jaccard + 
+               config.ga.weight_accuracy * score_accuracy + 
+               config.ga.weight_mutual_information * score_mi)
 
-    '''counts guarda el número de elementos de cada color en el estado final del autómata, y el objetivo es penalizar el fitness (reduciéndolo a la mitad)
-    si alguno de los estados tiene menos del 10% de las células totales del autómata'''
-    if (config.ga.penalized_fitness):
-        counts = np.bincount(ca[-1].flatten(), minlength=config.ca.num_states)
-        total_cells = ca[-1].size
-        if np.any(counts < (config.ga.minimum_percentage * total_cells)):
-            fit = fit * config.ga.penalization_factor 
+        if (config.ga.penalized_fitness):
+            counts = np.bincount(ca[-1].flatten(), minlength=3) 
+            total_cells = ca[-1].size
+            if np.any(counts[:2] < (config.ga.minimum_percentage * total_cells)):
+                fit = fit * config.ga.penalization_factor 
+    else:
+        '''Media ponderada entre SSIM, Jaccard y Accuracy'''
+        fit = (config.ga.weight_SSIM * ssim_metric(ca[-1], config.ca.target_state, config.ca) + 
+            config.ga.weight_Jaccard * jaccard_metric(ca[-1], config.ca.target_state, config) + 
+            config.ga.weight_accuracy * accuracy_metric(ca[-1], config.ca.target_state, config.ca) + 
+            config.ga.weight_mutual_information * mutual_information_metric(ca[-1], config.ca.target_state, config.ca))
+
+        '''counts guarda el número de elementos de cada color en el estado final del autómata, y el objetivo es penalizar el fitness (reduciéndolo a la mitad)
+        si alguno de los estados tiene menos del 10% de las células totales del autómata'''
+        if (config.ga.penalized_fitness):
+            counts = np.bincount(ca[-1].flatten(), minlength=config.ca.num_states)
+            total_cells = ca[-1].size
+            if np.any(counts < (config.ga.minimum_percentage * total_cells)):
+                fit = fit * config.ga.penalization_factor 
 
     return fit
 
 
 def evaluate(individual, config):
+    # --- Cambio clave: Extracción segura de dimensiones ---
+    n = config.ca.ca_size[0]
+    # Si es 1D, ca_size[1] no existe, así que asignamos 1
+    m = config.ca.ca_size[1] if len(config.ca.ca_size) > 1 else 1
 
     if (config.ga.adaptative_fitness):
+        # Usamos n y m en lugar de acceder a los índices de la tupla directamente
+        CAs = generate_CAs(config.ga.ca_fitness//5, config.ca.num_states, n, m, config.ca)
 
-        CAs = generate_CAs(config.ga.ca_fitness//5, config.ca.num_states, config.ca.ca_size[0], config.ca.ca_size[1], config.ca)
+        evolvedCAs = rule_and_evolve(config.ga.ca_fitness//5, individual, CAs, n, m, config.ca)
 
-        evolvedCAs = rule_and_evolve(config.ga.ca_fitness//5, individual, CAs, config.ca.ca_size[0], config.ca.ca_size[1], config.ca)
-
-        '''Estudiar métricas para medir fitness, comparando el estado final del autómata con el estado objetivo'''
+        '''Estudiar métricas para medir fitness...'''
         fitness_values_1 = []
         for ca in evolvedCAs:
             fit = calculate_fitness(ca, config)
@@ -283,21 +330,22 @@ def evaluate(individual, config):
         if res1 < config.ga.adaptative_fitness_threshold:
             return (res1,)
             
-        CAs = generate_CAs(config.ga.ca_fitness, config.ca.num_states, config.ca.ca_size[0], config.ca.ca_size[1], config.ca)
+        CAs_full = generate_CAs(config.ga.ca_fitness, config.ca.num_states, n, m, config.ca)
+      
+        evolvedCAs_full = rule_and_evolve(config.ga.ca_fitness, individual, CAs_full, n, m, config.ca)
         
         fitness_values_2 = []
-        for ca in evolvedCAs:
+        for ca in evolvedCAs_full: # Usar el conjunto completo
             fit = calculate_fitness(ca, config)
             fitness_values_2.append(fit)
         res2 = np.mean(fitness_values_2)
         return (res2,)
 
     else:
-        CAs = generate_CAs(config.ga.ca_fitness, config.ca.num_states, config.ca.ca_size[0], config.ca.ca_size[1], config.ca)
+        CAs = generate_CAs(config.ga.ca_fitness, config.ca.num_states, n, m, config.ca)
 
-        evolvedCAs = rule_and_evolve(config.ga.ca_fitness, individual, CAs, config.ca.ca_size[0], config.ca.ca_size[1], config.ca)
+        evolvedCAs = rule_and_evolve(config.ga.ca_fitness, individual, CAs, n, m, config.ca)
 
-        '''Estudiar métricas para medir fitness, comparando el estado final del autómata con el estado objetivo'''
         fitness_values = []
         for ca in evolvedCAs:
             fit = calculate_fitness(ca, config)
@@ -305,7 +353,6 @@ def evaluate(individual, config):
 
         res = np.mean(fitness_values)
         return (res,)
-    
 
 '''Funcion de mutacion personalizada: selecciona un gen al azar, lo cambia a uno distinto aleatoriamente y devuelve el individuo modificado'''
 def mutChangeGen(individual, ca_config):
@@ -326,11 +373,6 @@ def mutChangeGen(individual, ca_config):
 
 def GeneticAlgorithm(config: FrameworkConfig, seed_rule: list = None):
 
-    """
-    Ejecuta el Algoritmo Genético usando DEAP.
-    Recibe la configuración dictada por el CBR y, si es compatible, la regla semilla.
-    """
-
     if config.ca.ca_neighborhood == 'von Neumann':
         config.ca.ind_size = config.ca.num_states ** 5
     elif config.ca.ca_neighborhood == 'Moore':
@@ -338,30 +380,28 @@ def GeneticAlgorithm(config: FrameworkConfig, seed_rule: list = None):
     else: # 1D
         config.ca.ind_size = config.ca.num_states ** (2 * int(config.ca.ca_neighborhood) + 1)
     print("\n[Evolución] Inicializando entorno DEAP...")
-    
+
     # Limpiamos clases previas de DEAP por si se ejecuta varias veces
     if hasattr(creator, "FitnessMax"):
         del creator.FitnessMax
     if hasattr(creator, "Individual"):
         del creator.Individual
 
-    '''Creador de fitness y de individuo
-    Fitness con único objetivo (weights = (1.0,) y máximo'''
     creator.create("FitnessMax", base.Fitness, weights=(1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMax)
 
-
-    '''Especificación de genes, individuos y poblacion
-    Individuos ternarios, attr_int entre 0 y num_states - 1, y en forma de lista
-    '''
     toolbox = base.Toolbox()
+    
+    pool = multiprocessing.Pool()
+    toolbox.register("map", pool.map)
+    #########################################################
+
     toolbox.register("attr_int", random.randint, 0, config.ca.num_states - 1)
     toolbox.register("individual", tools.initRepeat, creator.Individual, 
                      toolbox.attr_int, config.ca.ind_size)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-    '''Configuración del cruce y la selección (aunque no sea necesario), selecciona la mutacion personalizada (mutChangeGen) y
-    registra la función de evaluacion personalizada del algoritmo '''
+    # ... (Todo tu bloque de cruce, seleccion y mutacion sigue igual) ...
     if config.ga.cx_method == 'twoPoint':
         toolbox.register("mate", tools.cxTwoPoint)
     elif config.ga.cx_method == 'onePoint':
@@ -373,7 +413,6 @@ def GeneticAlgorithm(config: FrameworkConfig, seed_rule: list = None):
     elif config.ga.cx_method == 'partiallyMatched':
         toolbox.register("mate", tools.cxPartialyMatched)
 
-    # --- SELECCIÓN ---
     if config.ga.sel_method == 'tournament':
         toolbox.register("select", tools.selTournament, tournsize=config.ga.tournament_size)
     elif config.ga.sel_method == 'roulette':
@@ -383,61 +422,44 @@ def GeneticAlgorithm(config: FrameworkConfig, seed_rule: list = None):
     elif config.ga.sel_method == 'random':
         toolbox.register("select", tools.selRandom)
 
-    # --- MUTACIÓN Y EVALUACIÓN ---
-    # Asumimos que mutChangeGen y evaluate ya están definidas en este script
     toolbox.register("mutate", mutChangeGen, ca_config=config.ca)
-    
-    # Es importante pasarle el config al evaluate para que sepa contra qué bandera medir (target_state)
     toolbox.register("evaluate", evaluate, config=config)
 
-    # ---------------------------------------------------------
-    # INYECCIÓN MEMÉTICA (Siembra guiada por el CBR)
-    # ---------------------------------------------------------
     pop = toolbox.population(n=config.ga.pop_size)
     
+    # ... (Tu bloque de inyección memética sigue igual) ...
     if seed_rule is not None and len(seed_rule) == config.ca.ind_size:
-        num_clones = int(config.ga.pop_size * 0.05) # 2.5% clones exactos
-        num_mutated = int(config.ga.pop_size * 0.05) # 2.5% clones mutados
-
-        
+        num_clones = int(config.ga.pop_size * 0.025) 
+        num_mutated = int(config.ga.pop_size * 0.025) 
         print(f"[Evolución] Sembrando población: {num_clones} clones y {num_mutated} mutados de la regla CBR.")
-        print(f"Inyectamos la regla {seed_rule}")
-        
-        # 1. Clones exactos de la regla rotada
         for i in range(num_clones):
             pop[i] = creator.Individual(copy.deepcopy(seed_rule))
-            
-        # 2. Clones con ligera mutación
         for i in range(num_clones, num_clones + num_mutated):
             ind = creator.Individual(copy.deepcopy(seed_rule))
-            # Aplicamos una mutación suave, 5% de los genes
             genes_a_mutar = random.sample(range(config.ca.ind_size), int(config.ca.ind_size*0.05))
             for g in genes_a_mutar:
                 ind[g] = random.randint(0, config.ca.num_states - 1)
             pop[i] = ind
 
-
-        
     print('Iniciando cálculo de fitness', flush = True)
-    fitnesses = Parallel(n_jobs=-1)(delayed(toolbox.evaluate)(ind) for ind in pop)
+    
+    ### MODIFICADO: Uso de toolbox.map en lugar de Parallel ###
+    fitnesses = toolbox.map(toolbox.evaluate, pop)
     for ind, fit in zip(pop, fitnesses):
         ind.fitness.values = fit
+    ###########################################################
+    
     print('Cálculo de fitness terminado', flush = True)
 
     max_fitness_values = []
-    
-    # Pre-cargamos para evitar errores de referencia en las primeras iteraciones si adaptative_fitness no entra
     NUM_MUT = config.ga.num_mutations[0] if len(config.ga.num_mutations) > 0 else 1
     MUT_PROB = config.ga.mutation_probabilities[0] if len(config.ga.mutation_probabilities) > 0 else 0.1
-
     generaciones_sin_mejora = 0
 
     for g in range(config.ga.num_generations):
         print(f'--- Iniciando Generación {g} ---', flush=True)
 
         if (config.ga.classic_ga):
-            
-            '''Estrategia clásica'''
             elites = list(map(toolbox.clone, tools.selBest(pop, k= round(config.ga.elite_passing*config.ga.pop_size))))
             offspring = toolbox.select(pop, len(pop) - round(config.ga.elite_passing*config.ga.pop_size))
             offspring = list(map(toolbox.clone, offspring))
@@ -454,23 +476,28 @@ def GeneticAlgorithm(config: FrameworkConfig, seed_rule: list = None):
                     del mutant.fitness.values
 
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-            fitnesses = Parallel(n_jobs=-1)(delayed(toolbox.evaluate)(ind) for ind in invalid_ind)
+            
+            ### MODIFICADO ###
+            fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
             for ind, fit in zip(invalid_ind, fitnesses):
                 ind.fitness.values = fit
+            ##################
 
             pop[:] = elites + offspring
 
             if (config.ga.diversity > 0):
                 pop_aux1 = tools.selBest(pop, k = round(config.ga.pop_size*(1 - config.ga.diversity)))
                 pop_aux2 = toolbox.population(n=config.ga.pop_size - round(config.ga.pop_size*(1 - config.ga.diversity)))
-                fitnesses = Parallel(n_jobs=-1)(delayed(toolbox.evaluate)(ind) for ind in pop_aux2)
+                
+                ### MODIFICADO ###
+                fitnesses = toolbox.map(toolbox.evaluate, pop_aux2)
                 for ind, fit in zip(pop_aux2, fitnesses):
                     ind.fitness.values = fit
+                ##################
                     
                 pop[:] = pop_aux1 + pop_aux2
 
             top = tools.selBest(pop, 3)
-
             if (config.ga.adaptative_mut_prob):
                 current_fit = top[0].fitness.values[0]
                 for i in range(len(config.ga.mutation_probability_interval) - 1):
@@ -480,7 +507,6 @@ def GeneticAlgorithm(config: FrameworkConfig, seed_rule: list = None):
 
 
         elif config.ga.mu_lambda_ga:
-            '''Estrategia mu + lambda'''
             pop.sort(key=lambda x: x.fitness.values[0], reverse=True)
 
             n_elites = int(round(config.ga.elite_passing * config.ga.pop_size))
@@ -496,9 +522,12 @@ def GeneticAlgorithm(config: FrameworkConfig, seed_rule: list = None):
                 del mutant.fitness.values
 
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-            fitnesses = Parallel(n_jobs=-1)(delayed(toolbox.evaluate)(ind) for ind in invalid_ind)
+            
+            ### MODIFICADO ###
+            fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
             for ind, fit in zip(invalid_ind, fitnesses):
                 ind.fitness.values = fit
+            ##################
 
             pop_aux = aux + offspring
             pop_resto = tools.selBest(pop_aux, k = n_rest)
@@ -507,13 +536,16 @@ def GeneticAlgorithm(config: FrameworkConfig, seed_rule: list = None):
             if (config.ga.diversity > 0):
                 pop_aux1 = tools.selBest(pop, k = round(config.ga.pop_size*(1 - config.ga.diversity)))
                 pop_aux2 = toolbox.population(n=config.ga.pop_size - round(config.ga.pop_size*(1 - config.ga.diversity)))
-                fitnesses = Parallel(n_jobs=-1)(delayed(toolbox.evaluate)(ind) for ind in pop_aux2)
+                
+                ### MODIFICADO ###
+                fitnesses = toolbox.map(toolbox.evaluate, pop_aux2)
                 for ind, fit in zip(pop_aux2, fitnesses):
                     ind.fitness.values = fit
+                ##################
+                    
                 pop[:] = pop_aux1 + pop_aux2
 
             top = tools.selBest(pop, 3)
-
             if (config.ga.adaptative_num_mut):
                 current_fit = top[0].fitness.values[0]
                 for i in range(len(config.ga.mutation_interval) - 1):
@@ -530,20 +562,28 @@ def GeneticAlgorithm(config: FrameworkConfig, seed_rule: list = None):
 
         print(f"--- Gen {g} Completada: Max Fitness (SSIM + Jaccard)= {top[0].fitness.values[0]:.2f}", flush=True)
 
-        print(top[0]) 
-
         max_fitness_values.append(top[0].fitness.values[0])
         if len(max_fitness_values) > 1 and max_fitness_values[-1] == max_fitness_values[-2]: 
             generaciones_sin_mejora = generaciones_sin_mejora + 1
-            if generaciones_sin_mejora > 75: return top, max_fitness_values 
-        else: generaciones_sin_mejora = 0
-        
+            if generaciones_sin_mejora > 100: 
+                pool.close()
+                pool.join()
+                return top, max_fitness_values 
+        else: 
+            generaciones_sin_mejora = 0
         
         if top[0].fitness.values[0] >= config.ga.stop_condition: 
             print(f"Parado en la generación {g} con fitness {top[0].fitness.values[0]}")
+            pool.close()
+            pool.join()
             return top, max_fitness_values 
 
+    pool.close()
+    pool.join()
+    
     return (tools.selBest(pop, 3), max_fitness_values)
+
+# %%
 
 # %%
 '''Código de colores'''
