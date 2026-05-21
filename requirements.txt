@@ -1,0 +1,9 @@
+numpy
+deap
+cellpylib
+joblib
+matplotlib
+opencv-python
+scikit-image
+scikit-learn
+scipy
