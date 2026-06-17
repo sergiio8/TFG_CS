@@ -1,20 +1,20 @@
-# Módulo de Memoria y Persistencia (CBR Memory)
+# Memory and Persistence Module (CBR Memory)
 
-Este directorio gestiona el almacenamiento y la persistencia de los casos del sistema CBR, divididos en dos categorías:
+This directory manages the storage and persistence of cases within the CBR system, divided into two categories:
 
-*   **Casos Base:** Conocimiento inicial estático calibrado por experto (*Density Classification, French Flag, Hungría y Japón*).
-*   **Casos Aprendidos:** Nuevas soluciones optimizadas por el algoritmo evolutivo que se almacenan de forma incremental.
-
----
-
-## Componentes Clave
-
-*   **Clase de Memoria:** Orquestador encargado de cargar los casos base al inicio, recuperar el histórico y guardar las nuevas soluciones en el disco.
-*   **Serialización (`pickle`):** Almacenamiento binario que preserva la estructura exacta de los objetos de Python (matrices `numpy` de los estados objetivo y vectores de las reglas), garantizando una lectura y escritura ultrarrápida.
+- **Base Cases:** Static initial knowledge calibrated by an expert (*Density Classification, French Flag, Hungary, and Japan*).
+- **Learned Cases:** New solutions optimized by the evolutionary algorithm that are stored incrementally.
 
 ---
 
-## Flujo de Trabajo
+## Key Components
 
-1. **Retrieve:** El motor solicita a este módulo la colección de casos para calcular las similitudes.
-2. **Retain:** Si una nueva regla supera el umbral de fitness adaptativo, este módulo le asigna un identificador único (`id`) y la serializa de forma permanente.
+- **Memory Class:** The orchestrator responsible for loading base cases at startup, retrieving historical cases, and saving new solutions to disk.
+- **Serialization (`pickle`):** Binary storage that preserves the exact structure of Python objects (such as `numpy` matrices for target states and rule vectors), guaranteeing ultra-fast read and write operations.
+
+---
+
+## Workflow
+
+1. **Retrieve:** The core engine requests the collection of cases from this module to compute similarities.
+2. **Retain:** If a new rule surpasses the adaptive fitness threshold, this module assigns it a unique identifier (`id`) and permanently serializes it.
