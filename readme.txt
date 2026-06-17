@@ -1,45 +1,45 @@
-Motor CBR para la Optimización de Reglas de Autómatas Celulares mediante Estrategias Evolutivas
+# CBR Engine for Cellular Automata Rule Optimization using Evolutionary Strategies
 
-Este repositorio contiene el framework de desarrollo y experimentación de mi Trabajo de Fin de Grado (TFG). El sistema combina el paradigma de Razonamiento Basado en Casos (CBR) con Algoritmos Evolutivos para automatizar y optimizar la búsqueda de reglas de transición locales en Autómatas Celulares (AC), permitiendo la emergencia de patrones (morfogénesis artificial) a partir de desorden inicial o semillas puntuales.
+This repository contains the development and experimental framework for my Bachelor's Thesis (Trabajo de Fin de Grado - TFG). The system combines the Case-Based Reasoning (CBR) paradigm with Evolutionary Algorithms to automate and optimize the search for local transition rules in Cellular Automata (CA), enabling pattern emergence (artificial morphogenesis) starting from initial disorder or localized seeds.
 
-Características Principales
+## Key Features
 
-- Motor CBR Completo: Implementación del ciclo de vida de 4 fases (Retrieve, Reuse, Revise y Retain).
-- Optimización evolutiva: implementación de Estrategias Evolutivas (mu + lambda)-ES con tasas de mutación adaptativas y dinámicas.
-- Métricas de Similitud 2D Avanzadas: Evaluación de fitness basada en el Índice de Similitud Estructural (SSIM), Índice de Jaccard  e Información Mutua.
+- Full CBR Engine: Implementation of the standard 4-phase lifecycle (Retrieve, Reuse, Revise, and Retain).
+- Evolutionary Optimization: Implementation of (mu + lambda)-ES Evolutionary Strategies featuring dynamic, adaptive mutation rates.
+- Advanced 2D Similarity Metrics: Fitness evaluation based on the Structural Similarity Index (SSIM), Jaccard Index, and Mutual Information.
 
-Requisitos e Instalación
+## Requirements and Installation
 
-El proyecto está desarrollado en Python 3.12 y se apoya principalmente en las librerías DEAP (computación evolutiva) y cellpylib (simulación de autómatas celulares).
+The project is developed in Python 3.12 and relies primarily on the DEAP library (evolutionary computation) and cellpylib (cellular automata simulation).
 
-1. Clona este repositorio:
+1. Clone this repository:
 git clone https://github.com/sergiio8/TFG_CS.git
 cd TFG_CS
 
-2. Instala las dependencias necesarias:
+2. Install the required dependencies:
 pip install -r requirements.txt
 
-Estructura del Repositorio
+## Repository Structure
 
-El código está completamente desacoplado de forma modular. Cada directorio cuenta con su propio archivo README.md interno que detalla la responsabilidad de sus scripts
+The codebase is fully decoupled and modular. Each directory includes its own internal README.md file detailing the specific responsibilities of its scripts.
 
-Ejecución y Puntos de Entrada
+## Execution and Entry Points
 
-El repositorio dispone de tres scripts principales en la raíz para ejecutar y contrastar las diferentes aproximaciones del estudio:
+The repository provides three main root scripts to execute and compare the different algorithmic approaches evaluated in the study:
 
-1. Motor CBR (Aproximación Propuesta)
-Ejecuta el ciclo de vida completo del CBR. Toma un nuevo problema objetivo, recupera los casos más similares de la memoria (evaluando también rotaciones), inyecta el conocimiento adaptado en la población inicial y refina la solución mediante la estrategia evolutiva.
+### 1. CBR Engine (Proposed Approach)
+Executes the full CBR lifecycle. It analyzes a new target problem, retrieves the most structurally similar cases from memory (accounting for rotational invariance), injects the adapted knowledge into the initial population, and refines the solution using the evolutionary strategy.
 
 python main.py
 
-Nota: El nuevo problema o imagen objetivo que se desea resolver debe configurarse directamente editando los parámetros editables dentro de este archivo.
+Note: The new target problem or target image you wish to solve must be configured directly by modifying the editable parameters within this file.
 
-2. Resolución Heurística
-Lanza de manera estática una batería de experimentos predeterminados utilizando configuraciones de hiperparámetros óptimas fijadas manualmente mediante conocimiento experto.
+### 2. Heuristic Baseline
+Statically launches a batch of predetermined experiments using fixed, optimal hyperparameter configurations derived manually through expert knowledge.
 
 python main_heuristica.py
 
-3. Resolución Aleatoria
-Lanza experimentos de control configurando los parámetros del autómata y del algoritmo de búsqueda a ciegas (dentro de rangos válidos).
+### 3. Random Baseline
+Launches control experiments by randomly configuring the cellular automaton and search algorithm parameters (within valid boundaries) to establish a blind search baseline.
 
 python main_random.py
