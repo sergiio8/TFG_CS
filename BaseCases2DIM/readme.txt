@@ -1,22 +1,22 @@
-# Casos de Estudio 2-Dimensionales (2D Base Cases)
+# 2-Dimensional Case Studies (2D Base Cases)
 
-Este directorio contiene la modelización, configuración y scripts de experimentación para los problemas implementados en dos dimensiones. Estos escenarios evalúan dinámicas de interacción celular más complejas y sirven como base de conocimiento avanzada para el motor CBR en problemas de morfogénesis plana.
-
----
-
-## Problemas Implementados
-
-### 1. Bandera de Hungría (Formación de Patrones Horizontales)
-Problema de morfogénesis artificial que exige al autómata segmentar el lienzo bidimensional en tres franjas horizontales perfectas (rojo, blanco y verde). 
-*   **Configuración:** Espacio ternario (3 estados), vecindario de von Neumann y un esquema híbrido de fronteras (fijas en horizontal para separar el rojo/verde y periódicas en vertical para mantener la continuidad).
-
-### 2. Bandera de Japón (Morfogénesis Geométrica desde Semilla)
-Desafío que introduce una tipología de problema radicalmente nueva: generar una forma geométrica precisa (un círculo centrado) a partir de una única célula roja inicial (semilla central) en un entorno blanco.
-*   **Configuración:** Espacio binario, vecindario de Moore (indispensable para procesar diagonales y suavizar la curvatura) y fronteras periódicas. Evalúa el comportamiento emergente temporal del autómata frente a variaciones en los pasos de tiempo (*timesteps*).
+This directory contains the modeling, configuration, and experimental scripts for the problems implemented in two dimensions. These scenarios evaluate more complex cellular interaction dynamics and serve as an advanced knowledge base for the CBR engine in planar morphogenesis problems.
 
 ---
 
-## Innovaciones Técnicas del Entorno 2D
+## Implemented Problems
 
-*   **Métricas de Fitness Avanzadas:** La evaluación del rendimiento en estos casos requirió abandonar el *accuracy* lineal en favor de la combinación ponderada del Índice de Similitud Estructural (SSIM) multicanal, el Índice de Jaccard pesado por importancia de estado e Información Mutua.
-*   **Mutación Adaptativa Dinámica:** Implementa un régimen estricto de exploración vs. explotación que reduce de forma escalonada el número de genes mutados por cromosoma conforme el *fitness* supera los umbrales críticos de convergencia.
+### 1. Hungary Flag (Horizontal Pattern Formation)
+An artificial morphogenesis problem that requires the automaton to segment the two-dimensional canvas into three perfect horizontal stripes (red, white, and green). 
+- **Configuration:** Ternary space (3 states), von Neumann neighborhood, and a hybrid boundary scheme (fixed horizontally to separate the red/green and periodic vertically to maintain continuity).
+
+### 2. Japan Flag (Geometric Morphogenesis from Seed)
+A challenge that introduces a radically new problem typology: generating a precise geometric shape (a centered circle) from a single initial red cell (central seed) in a white environment.
+- **Configuration:** Binary space, Moore neighborhood (indispensable for processing diagonals and smoothing curvature), and periodic boundaries. It evaluates the temporal emergent behavior of the automaton against variations in time steps (*timesteps*).
+
+---
+
+## Technical Innovations of the 2D Environment
+
+- **Advanced Fitness Metrics:** Performance evaluation in these cases required abandoning linear accuracy in favor of a weighted combination of the multi-channel Structural Similarity Index (SSIM), state-importance weighted Jaccard Index, and Mutual Information.
+- **Dynamic Adaptive Mutation:** Implements a strict exploration vs. exploitation regime that step-down reduces the number of mutated genes per chromosome as fitness surpasses critical convergence thresholds.
