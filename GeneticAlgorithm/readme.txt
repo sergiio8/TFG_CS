@@ -1,22 +1,22 @@
-# Módulo de Evolución (Evolutionary Framework)
+# Evolutionary Framework Module
 
-Este directorio aloja el núcleo de optimización encargado de buscar y refinar las reglas de transición locales de los Autómatas Celulares (AC) mediante Computación Evolutiva. 
+This directory houses the optimization core responsible for searching and refining the local transition rules of Cellular Automata (CA) using Evolutionary Computation. 
 
-Conecta de forma directa la simulación física de **CellPyLib** con los algoritmos de búsqueda de **DEAP**.
-
----
-
-## Estrategias Soportadas
-
-El módulo está diseñado de forma híbrida y conmuta entre dos enfoques según la configuración del problema:
-
-*   **Algoritmo Genético Clásico (AG):** Implementa el ciclo estándar con selección por torneo, cruce de dos puntos y mutación de inversión de bits. Ideal para problemas homogéneos como *Density Classification*.
-*   **Estrategia Evolutiva $(\mu + \lambda)$-ES:** Opera exclusivamente mediante operadores de mutación y una intensa presión selectiva basada en elitismo. Incluye tasas de mutación dinámicas (exploración vs. explotación) críticas para resolver problemas de morfogénesis compleja (*French Flag*, Japón, Hungría).
+It directly connects the physical simulation of **CellPyLib** with the search algorithms from **DEAP**.
 
 ---
 
-## Funcionalidades Especiales
+## Supported Strategies
 
-*   **Fitness Adaptativo:** Ejecuta un filtrado rápido evaluando las reglas en una subpoblación pequeña de autómatas; si superan el umbral inicial, realiza la evaluación completa en el entorno real, ahorrando hasta un 80% de coste computacional.
-*   **Métricas Multicriterio 2D:** Evalúa la calidad de la imagen generada combinando simultáneamente el Índice de Similitud Estructural (SSIM), el Índice de Jaccard por estados y la Información Mutua.
-*   **Inyección de Conocimiento (Transfer Learning):** Capaz de recibir reglas externas (recuperadas por el motor CBR), clonarlas y mutarlas ligeramente para inicializar la población con una ventaja competitiva.
+The module is designed as a hybrid system and switches between two approaches depending on the problem configuration:
+
+- **Classical Genetic Algorithm (GA):** Implements the standard cycle with tournament selection, two-point crossover, and bit-flip mutation. Ideal for homogeneous problems like *Density Classification*.
+- **$(\mu + \lambda)\text{-ES}$ Evolutionary Strategy:** Operates exclusively through mutation operators and intense elitism-based selective pressure. It includes dynamic mutation rates (exploration vs. exploitation) that are critical for solving complex morphogenesis problems (*French Flag*, Japan, Hungary).
+
+---
+
+## Special Features
+
+- **Adaptive Fitness:** Executes rapid filtering by evaluating rules on a small subpopulation of automata; if they surpass the initial threshold, it performs a full evaluation in the actual environment, saving up to 80% in computational cost.
+- **2D Multi-Criteria Metrics:** Evaluates the quality of the generated image by simultaneously combining the Structural Similarity Index (SSIM), state-wise Jaccard Index, and Mutual Information.
+- **Knowledge Injection (Transfer Learning):** Capable of receiving external rules (retrieved by the CBR engine), cloning them, and slightly mutating them to initialize the population with a competitive advantage.
