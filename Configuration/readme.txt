@@ -1,23 +1,23 @@
-# Módulo de Configuración y Estructura de Datos (CBR Caso)
+# Configuration and Data Structure Module (CBR Case)
 
-Este directorio define las estructuras de datos fuertemente tipadas y los esquemas de configuración globales del sistema. Utiliza `dataclasses` de Python para garantizar un manejo de datos consistente, escalable y fácilmente serializable entre el motor CBR, el framework evolutivo y el módulo de memoria.
-
----
-
-## Estructura de un Caso CBR
-
-Cada instancia se modela formalmente siguiendo la tupla matemática del problema, desacoplada en los siguientes objetos:
-
-*   **`CasoCBR`:** El contenedor raíz. Vincula un identificador único (`id`) con las características del problema y su solución asociada.
-*   **`CaracteristicasProblema`:** Descriptor topológico y estructural del estado objetivo (matriz de la imagen, dimensiones espaciales, número de estados, presencia de franjas, componentes conexas y uniformidad de bordes).
-*   **`SolucionCBR`:** Almacena la configuración del framework utilizada, la mejor regla local encontrada ($\varphi^*$) y el valor de *fitness* final alcanzado ($f^*$).
-*   **`FrameworkConfig`:** Clase aglutinadora que unifica los dos entornos de ejecución:
-    *   **`CAConfig`:** Parámetros del Autómata Celular en *CellPyLib* (tamaño, vecindario de Moore/von Neumann, tipo de frontera y pasos de tiempo).
-    *   **`GAConfig`:** Hiperparámetros del Algoritmo Evolutivo en *DEAP* (tamaño de población, generaciones, métodos de selección, operadores genéticos y pesos de las métricas de similitud).
+This directory defines the strongly typed data structures and global configuration schemas of the system. It utilizes Python `dataclasses` to ensure consistent, scalable, and easily serializable data handling across the CBR engine, the evolutionary framework, and the memory module.
 
 ---
 
-## Características de Diseño
+## Structure of a CBR Case
 
-*   **Validación Automatizada (`__post_init__`):** Calcula dinámicamente propiedades del sistema en tiempo de ejecución, como el tamaño del cromosoma (`ind_size`) en función del vecindario escogido ($n^5$ para von Neumann y $n^9$ para Moore).
-*   **Modularidad Completa:** Actúa como el contrato de datos único del repositorio, permitiendo que cualquier cambio en la parametrización se propague automáticamente por todo el pipeline del TFG.
+Each instance is formally modeled following the problem's mathematical tuple, decoupled into the following objects:
+
+- **`CBRCase`:** The root container. It links a unique identifier (`id`) with the problem features and its associated solution.
+- **`ProblemFeatures`:** Topological and structural descriptor of the target state (image matrix, spatial dimensions, number of states, presence of stripes, connected components, and border uniformity).
+- **`CBRSolution`:** Stores the framework configuration used, the best local rule found ($\varphi^*$), and the final fitness score achieved ($f^*$).
+- **`FrameworkConfig`:** A master class that unifies both execution environments:
+    - **`CAConfig`:** Cellular Automata parameters in *CellPyLib* (size, Moore/von Neumann neighborhood, boundary handling, and time steps).
+    - **`GAConfig`:** Evolutionary Algorithm hyperparameters in *DEAP* (population size, generations, selection methods, genetic operators, and similarity metric weights).
+
+---
+
+## Design Features
+
+- **Automated Validation (`__post_init__`):** Dynamically computes runtime system properties, such as the chromosome size (`ind_size`) based on the chosen neighborhood ($n^5$ for von Neumann and $n^9$ for Moore).
+- **Complete Modularity:** Acts as the single data contract for the repository, ensuring that any changes in parameterization automatically propagate throughout the entire TFG pipeline.
