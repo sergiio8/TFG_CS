@@ -44,6 +44,48 @@ from configuration import FrameworkConfig, CAConfig, GAConfig
 
 # %%
 
+def evolve2d_vectorized(initial_state, rule_table, ca_config):
+    H, W = ca_config.ca_size[0], ca_config.ca_size[1]
+    timesteps = ca_config.ca_timesteps
+    num_states = ca_config.num_states
+
+    history = np.empty((timesteps + 1, H, W), dtype=int)
+    history[0] = initial_state
+    state = initial_state.copy()
+
+    if ca_config.ca_neighborhood == 'Moore':
+        offsets = [(0,0), (-1,0), (-1,1), (0,1), (1,1), (1,0), (1,-1), (0,-1), (-1,-1)]
+        powers = num_states ** np.arange(8, -1, -1)
+    else:  # von Neumann
+        offsets = [(0,0), (-1,0), (0,1), (1,0), (0,-1)]
+        powers = num_states ** np.arange(4, -1, -1)
+
+    modo_v = 'wrap' if ca_config.ca_vertical_boundary_conditions == 'periodic' else 'edge'
+    modo_h = 'wrap' if ca_config.ca_horizontal_boundary_conditions == 'periodic' else 'edge'
+
+    for t in range(1, timesteps + 1):
+        padded = np.pad(state, ((1, 1), (0, 0)), mode=modo_h)
+        padded = np.pad(padded, ((0, 0), (1, 1)), mode=modo_v)
+
+        idx = np.zeros((H, W), dtype=np.int64)
+        for (dy, dx), p in zip(offsets, powers):
+            vecino = padded[1+dy : 1+dy+H, 1+dx : 1+dx+W]
+            idx += vecino * p
+
+        nuevo_estado = rule_table[idx]
+
+        if ca_config.ca_horizontal_boundary_conditions == 'fixed':
+            nuevo_estado[0, :] = ca_config.ca_row0_state
+            nuevo_estado[-1, :] = ca_config.ca_rowN_state
+        if ca_config.ca_vertical_boundary_conditions == 'fixed':
+            nuevo_estado[:, 0] = ca_config.ca_column0_state
+            nuevo_estado[:, -1] = ca_config.ca_columnN_state
+
+        state = nuevo_estado
+        history[t] = state
+
+    return history
+
 def create_transition_rule(individual, ca_size_1, ca_size_2, ca_config):
     rule_table = np.array(individual, dtype=int)
     
@@ -247,7 +289,8 @@ def evolved_CAs(CAs, mi_regla, ca_config):
             evolved_CAs_list.append(evolved_CA)
     else:
         for i in range(len(CAs)):
-            evolved_CA = cpl.evolve2d(CAs[i], timesteps=ca_config.ca_timesteps, neighbourhood = ca_config.ca_neighborhood, apply_rule=mi_regla)
+            estado_inicial_2d = CAs[i][0]  # quitamos la dim de tiempo (expand_dims)
+            evolved_CA = evolve2d_vectorized(estado_inicial_2d, rule_table=np.array(mi_regla), ca_config=ca_config)
             evolved_CAs_list.append(evolved_CA)
 
     return evolved_CAs_list
@@ -255,11 +298,13 @@ def evolved_CAs(CAs, mi_regla, ca_config):
 '''Funcion que genera la regla a partir de un individuo, evoluciona los autómatas con esa regla y devuelve el valor de fitness 
 correspondiente.'''
 def rule_and_evolve(ca_num, individual, CAs, ca_size_1, ca_size_2, ca_config):
-    '''Creación de la regla de transición'''
-    mi_regla = create_transition_rule(individual, ca_size_1, ca_size_2, ca_config)
-    
-    '''Evolución de los autómatas con la regla creada'''
-    return evolved_CAs(CAs, mi_regla, ca_config)
+    m = ca_config.ca_size[1] if len(ca_config.ca_size) > 1 else 1
+    if m == 1:
+        mi_regla = create_transition_rule(individual, ca_size_1, ca_size_2, ca_config)
+        return evolved_CAs(CAs, mi_regla, ca_config)
+    else:
+        rule_table = np.array(individual, dtype=int)
+        return evolved_CAs(CAs, rule_table, ca_config)
 
 def calculate_fitness(ca, config):
     if (config.ga.gaussian_filter):
@@ -429,8 +474,8 @@ def GeneticAlgorithm(config: FrameworkConfig, seed_rule: list = None):
     
     # ... (Tu bloque de inyección memética sigue igual) ...
     if seed_rule is not None and len(seed_rule) == config.ca.ind_size:
-        num_clones = int(config.ga.pop_size * 0.025) 
-        num_mutated = int(config.ga.pop_size * 0.025) 
+        num_clones = int(config.ga.pop_size * 0.05) 
+        num_mutated = int(config.ga.pop_size * 0.05) 
         print(f"[Evolución] Sembrando población: {num_clones} clones y {num_mutated} mutados de la regla CBR.")
         for i in range(num_clones):
             pop[i] = creator.Individual(copy.deepcopy(seed_rule))
