@@ -443,6 +443,7 @@ class CBREngine:
         dimension = 1 if len(target_matrix.shape) == 1 or target_matrix.shape[1] == 1 else 2
         num_estados = len(np.unique(target_matrix))
         print(f"[*] Dimensión: {dimension}D | Estados detectados: {num_estados}")
+        patrones = set()
 
         # Análisis de bordes
         if dimension == 2:
@@ -453,7 +454,6 @@ class CBREngine:
             all_edges = np.concatenate([top_edge, bottom_edge, left_edge, right_edge])
             borde_uniforme = len(np.unique(all_edges)) == 1
             f_h, f_v = franjas(target_matrix)
-            patrones = set()
             if f_h or f_v:
                 patrones.add("franjas")
             if tiene_circulo_central(target_matrix):
@@ -490,7 +490,7 @@ class CBREngine:
         print("\n--- FASE 2: RETRIEVE (Recuperación de casos) ---")
         casos_disponibles = self.instanciador.obtener_todos_los_casos()
         casos_ordenados = []
-        threshold_similarity = 0.6
+        threshold_similarity = 0.55
 
         for caso in casos_disponibles:
             # --- CÁLCULO DE SIMILITUD DESGLOSADO ---
@@ -542,7 +542,7 @@ class CBREngine:
             sim_componentes = 1.0 / (1.0 + abs(comp_target - comp_caso))
 
             # Son 4 métricas estructurales, dividimos entre 4.0
-            forma_score = (sim_mutual_info + sim_momentos_hu + sim_histograma + sim_componentes) / 4.0
+            forma_score = (sim_mutual_info + sim_histograma + sim_componentes) / 3.0
 
             # 3. Compatibilidad de Estados (20%): Viabilidad del cromosoma
             diferencia_estados = abs(target_features.num_estados - caso.problema.num_estados)
@@ -558,40 +558,37 @@ class CBREngine:
 
             
             # Puntuación final ponderada
-            score_total = (topo_score * 0.20) + (forma_score * 0.40) + (estado_score * 0.20) + (score_dim*0.20)
+            score_total = (topo_score * 0.20) + (forma_score * 0.50) + (estado_score * 0.1) + (score_dim*0.2)
             
             # --- IMPRESIÓN DEL DESGLOSE (Formateado) ---
             print(f"[*] Analizando: {caso.id_caso}")
             print(f"    |-- Topológica  (20%): {topo_score:.2f}  [SimH:{s_h} | SimV:{s_v} | BordeU:{b_u} | Franjas:{franjas} | Circulo:{circulo}]")
-            print(f"    |-- Estructural (40%): {forma_score:.2f}  [NMI:{sim_mutual_info:.2f} | Hu:{sim_momentos_hu:.2f} | Hist:{sim_histograma:.2f} | Comp:{sim_componentes:.2f}]")
-            print(f"    |-- Estados     (20%): {estado_score:.2f}  [Diff:{diferencia_estados}]")
+            print(f"    |-- Estructural (50%): {forma_score:.2f}  [NMI:{sim_mutual_info:.2f} | Hist:{sim_histograma:.2f} | Comp:{sim_componentes:.2f}]")
+            print(f"    |-- Estados     (10%): {estado_score:.2f}  [Diff:{diferencia_estados}]")
             print(f"    |-- Dimensiones (20%): {score_dim:.2f}")
             print(f"    └──> SIMILITUD FINAL:  {score_total:.2f}\n")
 
             # ... (todo tu código de cálculos de score se queda igual) ...
             
             # 1. ATAMOS la rotación a la tupla de este caso específico
-            casos_ordenados.append((caso, score_total, exito_rotacion))
+            exito_rotacion_este_caso = sim_mutual_info_2 > sim_mutual_info_1
+            casos_ordenados.append((caso, score_total, exito_rotacion_este_caso))
 
-        # 2. Ordenamos de mayor a menor similitud (el score es el índice 1)
+
         casos_ordenados.sort(key=lambda x: x[1], reverse=True)
+        resultados_completos = [c for c in casos_ordenados[:1] if c[1] >= threshold_similarity]
 
-        # 3. Filtramos por threshold y cogemos los 3 mejores
-        resultados_completos = [c for c in casos_ordenados[:2] if c[1] >= threshold_similarity]
-        
         if len(resultados_completos) == 0:
-            print("[!] Advertencia: No se encontró ningún caso suficientemente similar.")
             resultados_completos = [casos_ordenados[0]]
-            
-        # 4. Extraemos el exito_rotacion EXCLUSIVO del caso ganador (el top 1)
-        mejor_exito_rotacion = resultados_completos[0][2]
+
+        mejor_exito_rotacion = resultados_completos[0][2]  # ahora sí corresponde al ganador
         
         # 5. Limpiamos la lista para devolverla como espera la fase Reuse: (caso, score)
         resultados_finales = [(c[0], c[1]) for c in resultados_completos]
             
         return resultados_finales, mejor_exito_rotacion
 
-    def reuse(self, retrieved_cases: List[Tuple[CasoCBR, float]], target_features: CaracteristicasProblema, target_matrix: np.ndarray, exito_rotacion : bool):
+    def reuse(self, retrieved_cases: List[Tuple[CasoCBR, float]], target_features: CaracteristicasProblema, target_matrix: np.ndarray, colors: np.ndarray, exito_rotacion : bool):
         print("\n--- FASE 3: REUSE (Adaptación y Promedio) ---")
         
         total_score = sum(score for _, score in retrieved_cases)
@@ -603,44 +600,124 @@ class CBREngine:
         nueva_ca = copy.deepcopy(top1_case.solucion.configuracion.ca)
         nueva_ga = copy.deepcopy(top1_case.solucion.configuracion.ga)
         
-        nueva_ca.num_states = target_features.num_estados
-        nueva_ca.ca_size = tuple(target_matrix.shape) 
         nueva_ca.target_state = target_matrix.copy() 
+        nueva_ca.num_states = target_features.num_estados
 
+        if target_features.dimensiones == 1:
+            nueva_ca.ca_size = (target_matrix.shape[0],) 
+        else:
+            nueva_ca.ca_size = tuple(target_matrix.shape)
+            nueva_ca.target_state = target_matrix.copy() 
+
+        nueva_ca.colors = colors
+
+
+
+        # --- 1. Inicialización de la semilla (si aplica) ---
+        if hasattr(nueva_ca, 'ca_initial_state') and nueva_ca.ca_initial_state is not None:
+            # Se crea el array vacío (funciona igual para 1D que para 2D)
+            nueva_ca.ca_initial_state = np.zeros(nueva_ca.ca_size, dtype=int)
+            
+            if len(nueva_ca.ca_size) > 1 and nueva_ca.ca_size[1] > 1:
+                # CASO 2D: Semilla en el centro de la matriz
+                centro_y = nueva_ca.ca_size[0] // 2
+                centro_x = nueva_ca.ca_size[1] // 2
+                nueva_ca.ca_initial_state[centro_y, centro_x] = 1 
+                print(f"[*] Estado inicial 2D (semilla central) creado en {nueva_ca.ca_size}")
+            else:
+                # CASO 1D: Semilla en el centro del vector
+                centro = nueva_ca.ca_size[0] // 2
+                
+                # Ojo: si tu tupla 1D es (70,) se accede con un índice. Si es (70, 1) requiere dos.
+                # Lo hacemos seguro para ambos casos:
+                if len(nueva_ca.ca_size) > 1:
+                    nueva_ca.ca_initial_state[centro, 0] = 1
+                else:
+                    nueva_ca.ca_initial_state[centro] = 1
+                    
+                print(f"[*] Estado inicial 1D (semilla central) creado en posición {centro}")
+
+        # --- 2. Adaptación Dinámica de los Timesteps (Sirve para 1D y 2D) ---
+        # Sacamos esto fuera de los 'if' de arriba para asegurarnos de que SIEMPRE se ejecuta
         old_shape = top1_case.solucion.configuracion.ca.ca_size
         new_shape = nueva_ca.ca_size
-        
-        if len(old_shape) == 2 and len(new_shape) == 2:
-            max_dim_old = max(old_shape)
-            max_dim_new = max(new_shape)
-            
-            ratio_crecimiento = max_dim_new / max_dim_old
-            
-            # OJO: Cambia 'timesteps' si tu variable en CAConfig se llama diferente
-            old_timesteps = top1_case.solucion.configuracion.ca.ca_timesteps
-            
-            # Multiplicamos por el ratio y redondeamos hacia arriba para no quedarnos cortos
-            nueva_ca.ca_timesteps = math.ceil(old_timesteps * ratio_crecimiento)
 
-        if target_features.num_estados == 3:
+        # Si por algún casual la dimensión se guardó como un int (ej: 70) en vez de tupla, lo controlamos:
+        old_iterable = old_shape if isinstance(old_shape, (tuple, list)) else [old_shape]
+        new_iterable = new_shape if isinstance(new_shape, (tuple, list)) else [new_shape]
+
+        # Extraemos la dimensión más grande (Funciona para (70,), (70,1) y (18, 30))
+        max_dim_old = max(old_iterable)
+        max_dim_new = max(new_iterable)
+
+        # Calculamos el ratio de crecimiento
+        ratio_crecimiento = max_dim_new / max_dim_old
+
+        old_timesteps = top1_case.solucion.configuracion.ca.ca_timesteps
+
+        # Escalamos y redondeamos siempre hacia arriba (ceil)
+        nueva_ca.ca_timesteps = math.ceil(old_timesteps * ratio_crecimiento)
+
+        # Escalamos y redondeamos siempre hacia arriba (ceil)
+        nueva_ca.ca_timesteps = math.ceil(old_timesteps * ratio_crecimiento)
+
+     
+        if target_features.num_estados == 3 and target_features.dimensiones == 2:
             nueva_ca.ca_neighborhood = 'von Neumann'
+
+        elif target_features.dimensiones == 1 and target_features.num_estados == 3:
+            nueva_ca.ca_neighborhood = '1' 
         
-        if target_features.borde_uniforme:
-            nueva_ca.random_initial_state = False
-            nueva_ca.ca_horizontal_boundary_conditions = 'periodic'
-            nueva_ca.ca_vertical_boundary_conditions = 'periodic'
+        if target_features.dimensiones == 1:
+            nueva_ca.random_initial_state = False 
             
-            nueva_ca.ca_row0_state = None
-            nueva_ca.ca_rowN_state = None
-            nueva_ca.ca_column0_state = None
-            nueva_ca.ca_columnN_state = None
+            # Analizamos la densidad del color dominante
+            porcentajes = porcentaje_color(target_matrix)
+            color_dominante = porcentajes[0] # Ej: 0.90 en Anabaena, 0.50 en Drosophila
+            
+            if color_dominante > 0.80:
+                print("[*] 1D Detectado (Alta pureza): Inyectando estado inicial biológico (baja densidad de ruido).")
+                # Generamos array de ceros (estado 0) con un 5% de mutaciones (estado 1)
+                estado_bio = np.random.choice([0, 1], size=target_matrix.shape, p=[0.95, 0.05])
+                nueva_ca.ca_initial_state = estado_bio
+            else:
+                # CASO DROSOPHILA (Equilibrado) -> Ruido puro
+                print("[*] 1D Detectado (Equilibrado): Inyectando estado inicial de ruido aleatorio puro.")
+                nueva_ca.random_initial_state = True
+                nueva_ca.ca_initial_state = None
+                
+        else:
+            # --- LÓGICA CLÁSICA PARA 2D (Banderas) ---
+            nueva_ca.random_initial_state = not target_features.borde_uniforme
+            
+            if hasattr(nueva_ca, 'ca_initial_state') and not nueva_ca.random_initial_state:
+                # Semilla central para 2D (ej. Japón, Suiza)
+                nueva_ca.ca_initial_state = np.zeros(nueva_ca.ca_size, dtype=int)
+                centro_y = nueva_ca.ca_size[0] // 2
+                centro_x = nueva_ca.ca_size[1] // 2
+                nueva_ca.ca_initial_state[centro_y, centro_x] = 1 
+                print(f"[*] Estado inicial 2D (semilla central) creado en {nueva_ca.ca_size}")
+
+        # 2. Configuración de fronteras según la dimensión
+        if target_features.dimensiones == 1:
+            # --- CASO 1D: SIEMPRE FIJAMOS LOS EXTREMOS ---
+            nueva_ca.ca_horizontal_boundary_conditions = 'fixed'
+            nueva_ca.ca_vertical_boundary_conditions = 'fixed'
+            
+            # Los extremos son el primer y último elemento de la matriz 1D
+            nueva_ca.ca_row0_state = np.array([target_matrix[0]])
+            nueva_ca.ca_rowN_state = np.array([target_matrix[-1]])
+            
+            # (Aunque sea 1D, rellenamos las columnas por seguridad del Framework)
+            nueva_ca.ca_column0_state = np.array([target_matrix[0]])
+            nueva_ca.ca_columnN_state = np.array([target_matrix[-1]])
             
         else:
-            nueva_ca.random_initial_state = True
-            
+            # --- CASO 2D: HEREDAMOS Y ADAPTAMOS DEL MEJOR CASO (CBR) ---
             cond_horiz_orig = top1_case.solucion.configuracion.ca.ca_horizontal_boundary_conditions
             cond_vert_orig = top1_case.solucion.configuracion.ca.ca_vertical_boundary_conditions
-            
+
+            # Aplicamos el cruce de fronteras por rotación (si hubo éxito)
             if exito_rotacion: 
                 nueva_ca.ca_horizontal_boundary_conditions = cond_vert_orig
                 nueva_ca.ca_vertical_boundary_conditions = cond_horiz_orig
@@ -648,7 +725,7 @@ class CBREngine:
                 nueva_ca.ca_horizontal_boundary_conditions = cond_horiz_orig
                 nueva_ca.ca_vertical_boundary_conditions = cond_vert_orig
 
-
+            # Extracción de las filas/columnas para 2D si cayeron en 'fixed'
             if nueva_ca.ca_horizontal_boundary_conditions == 'fixed':
                 nueva_ca.ca_row0_state = target_matrix[0, :].copy()   
                 nueva_ca.ca_rowN_state = target_matrix[-1, :].copy()  
@@ -720,7 +797,32 @@ class CBREngine:
             
         if nueva_ga.adaptative_num_mut:
             nueva_ga.mutation_interval = promediar_arrays([ga.mutation_interval for ga in casos_ga], pesos)
-            nueva_ga.num_mutations = promediar_arrays([ga.num_mutations for ga in casos_ga], pesos, is_integer=True)
+            
+            # --- NORMALIZAR A TASAS ---
+            tasas_mutacion_casos = []
+            for (caso_tupla, score), ga in zip(retrieved_cases, casos_ga):
+                caso_original = caso_tupla 
+                
+                longitud_historica = caso_original.solucion.configuracion.ca.ind_size
+                
+                # 2. Convertimos sus mutaciones absolutas a porcentajes (Tasas)
+                # Ej: si hacía 5 mutaciones en 32 genes -> tasa = 5 / 32 = 0.156
+                tasa_historica = np.array(ga.num_mutations) / longitud_historica
+                tasas_mutacion_casos.append(tasa_historica)
+
+            # --- PROMEDIAR TASAS ---
+            tasa_promedio = promediar_arrays(tasas_mutacion_casos, pesos, is_integer=False)
+            
+            # --- DESNORMALIZAR AL NUEVO PROBLEMA ---
+            nueva_longitud = nueva_ca.ind_size
+            
+            # Calculamos las nuevas mutaciones absolutas y redondeamos a entero
+            mutaciones_adaptadas = np.round(tasa_promedio * nueva_longitud).astype(int)
+            
+            # Seguridad: Si la tasa promedio no era 0, asegurar al menos 1 mutación para no atascar el GA
+            mutaciones_adaptadas = np.maximum(mutaciones_adaptadas, 1)
+            
+            nueva_ga.num_mutations = mutaciones_adaptadas
 
         # 3. Inyección Memética (Evaluando compatibilidad de cromosomas)
         i = 0
