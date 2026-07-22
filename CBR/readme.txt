@@ -9,7 +9,6 @@ This directory houses the intelligent core of the system. Its function is to orc
 ### 1. Retrieve
 Given a new problem (target matrix), it extracts its features and computes its similarity against the knowledge base using an expert function:
 $$Sim = 0.2 \cdot Sim_{topo} + 0.5 \cdot Sim_{struct} + 0.1 \cdot Sim_{states} + 0.2 \cdot Sim_{dims}$$
-* **Spatial Invariance:** It compares the original target and also **rotated by 90 degrees**. If it matches the rotated version, it retrieves the case applying a penalty factor of $0.8$.
 
 ### 2. Reuse
 It adapts the parameters of the retrieved cases that exceed the threshold ($0.5$). Qualitative parameters are inherited from the best case, and quantitative parameters are calculated using weighted averages.
