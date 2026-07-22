@@ -31,7 +31,7 @@ The codebase is fully decoupled and modular. Each directory includes its own int
 The repository provides three main root scripts to execute and compare the different algorithmic approaches evaluated in the study:
 
 ### 1. CBR Engine (Proposed Approach)
-Executes the full CBR lifecycle. It analyzes a new target problem, retrieves the most structurally similar cases from memory (accounting for rotational invariance), injects the adapted knowledge into the initial population, and refines the solution using the evolutionary strategy.
+Executes the full CBR lifecycle. It analyzes a new target problem, retrieves the most structurally similar cases from memory, injects the adapted knowledge into the initial population, and refines the solution using the evolutionary strategy.
 
 python main.py
 
