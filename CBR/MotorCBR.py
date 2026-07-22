@@ -3,7 +3,6 @@ import math
 import sys
 import subprocess
 
-
 import cv2
 import copy
 from typing import List, Tuple
@@ -21,8 +20,6 @@ from Evolucion import GeneticAlgorithm
 # ==========================================
 # FUNCIONES AUXILIARES DE VISIÓN Y SIMILITUD
 # ==========================================
-
-
 
 '''Código de colores'''
 AZUL_CLARO   = "\033[94m" # Para el estado azul
@@ -105,7 +102,7 @@ def dibujar_regla_1dim(regla, CA):
         print(f"Índice {indice:04d}:   {config_visual}   ->   {resultado_visual}")
 
 
-'''Funcion que, dada una regla, la muestra gráfciamente con las configuraciones de vecinos y los colores correspondientes'''
+'''Funcion que, dada una regla, la muestra gráficamente con las configuraciones de vecinos y los colores correspondientes'''
 def dibujar_regla_vonNeumann(regla, CA):
     simbolo = "■" 
 
@@ -147,7 +144,6 @@ def dibujar_regla_vonNeumann(regla, CA):
         res_visual = simbolos_map[str(resultado)]
         
         # 4. Imprimir en formato bloque (Cross layout)
-        # Usamos caracteres invisibles para alinear o espacios simples
         print(f"Índice {indice:03d}:")
         print(f"    {N}    ")       # Línea superior (Norte)
         print(f"  {W} {C} {E}  ->  {res_visual}") # Línea media (Oeste, Centro, Este) -> Resultado
@@ -198,14 +194,11 @@ def dibujar_regla_Moore(regla, CA):
         res_visual = simbolos_map[str(resultado)]
         
         # 4. Imprimir en formato bloque (Cross layout)
-        # Usamos caracteres invisibles para alinear o espacios simples
         print(f"Índice {indice:03d}:")
         print(f" {N1} {N2} {N3}    ")       # Línea superior (Norte 1)
         print(f" {N8} {C} {N4}  ->  {res_visual}") # Línea media (Norte 8, Centro, Norte 4) -> Resultado
         print(f" {N7} {N6} {N5}    ")       # Línea inferior (Sur 1)
         print("-" * 20)             # Separador
-
-# %%
 
 
 def momentos_hu(target: np.ndarray) -> List[float]:
@@ -237,64 +230,6 @@ def similitud_hu(momentos_A: List[float], momentos_B: List[float]) -> float:
     distancia = np.linalg.norm(vec_A - vec_B)
     return 1.0 / (1.0 + distancia)
 
-def rotar_moore(regla_original: List[int], num_estados: int) -> List[int]:
-    tamaño_cromosoma = num_estados ** 9
-    regla_rotada = [0] * tamaño_cromosoma
-    
-    for i_new in range(tamaño_cromosoma):
-        # 1. Obtenemos el vecindario en el mundo nuevo (rotado a la izquierda)
-        config_new = np.base_repr(i_new, base=num_estados).zfill(9)
-        
-        # 2. Deshacemos el giro (rotamos el vecindario 90º a la DERECHA)
-        # Mapeamos qué índice del 'config_new' va a cada posición del 'config_old'
-        old_0 = config_new[6]
-        old_1 = config_new[3]
-        old_2 = config_new[0]
-        
-        old_3 = config_new[7]
-        old_4 = config_new[4] 
-        old_5 = config_new[1]
-        
-        old_6 = config_new[8]
-        old_7 = config_new[5]
-        old_8 = config_new[2]
-        
-        # 3. Reconstruimos la cadena del índice en el mundo original
-        config_old = old_0 + old_1 + old_2 + old_3 + old_4 + old_5 + old_6 + old_7 + old_8
-        
-        # 4. Buscamos qué decía la regla original para esa configuración y la copiamos
-        i_old = int(config_old, num_estados)
-        regla_rotada[i_new] = regla_original[i_old]
-        
-    return regla_rotada
-
-def rotar_vonNeumann(regla_original: List[int], num_estados: int) -> List[int]:
-    tamaño_cromosoma = num_estados ** 5
-    regla_rotada = [0] * tamaño_cromosoma
-    
-    for i_new in range(tamaño_cromosoma):
-        # 1. Obtenemos el vecindario en el mundo nuevo (rotado a la izquierda)
-        config_new = np.base_repr(i_new, base=num_estados).zfill(5)
-        
-        # 2. Deshacemos el giro (rotamos el vecindario 90º a la DERECHA)
-        # Mapeamos qué índice del 'config_new' va a cada posición del 'config_old'
-        old_0 = config_new[0]
-        old_1 = config_new[4]
-        old_2 = config_new[1]
-        
-        old_3 = config_new[2]
-        old_4 = config_new[3] 
-        
-        
-        # 3. Reconstruimos la cadena del índice en el mundo original
-        config_old = old_0 + old_1 + old_2 + old_3 + old_4
-        
-        # 4. Buscamos qué decía la regla original para esa configuración y la copiamos
-        i_old = int(config_old, num_estados)
-        regla_rotada[i_new] = regla_original[i_old]
-        
-    return regla_rotada
-
 def porcentaje_color(target: np.ndarray) -> List[float]:
     num_pixels = target.size
     
@@ -321,11 +256,9 @@ def contar_componentes_conexas(target: np.ndarray) -> int:
         mascara = np.uint8(target == estado)
         
         # 2. cv2.connectedComponents cuenta los bloques conectados.
-        # connectivity=4 asegura que no saltemos en diagonal (ideal para banderas)
         num_labels, labels = cv2.connectedComponents(mascara, connectivity=4)
         
         # 3. num_labels siempre cuenta el fondo (los 0s) como una componente.
-        # Por tanto, el número real de islas de ese color es (num_labels - 1)
         total_componentes += (num_labels - 1)
         
     return total_componentes
@@ -338,7 +271,6 @@ def franjas(target: np.ndarray) -> Tuple[bool, bool]:
         
     es_vertical = np.all(target == target[0, :], axis=0).all()
     es_horizontal = np.all(target.T == target.T[0, :], axis=0).all()
-
 
     return es_horizontal, es_vertical
 
@@ -359,7 +291,7 @@ def tiene_circulo_central(target: np.ndarray) -> bool:
     # 2. Aislamos ese color
     mascara = np.uint8(target == color_centro)
     
-    # 3. Extraemos las islas y sus estadísticas (bounding boxes)
+    # 3. Extraemos las islas y sus estadísticas
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mascara, connectivity=4)
     
     # 4. Vemos a qué isla pertenece el píxel central
@@ -376,8 +308,7 @@ def tiene_circulo_central(target: np.ndarray) -> bool:
     if toca_bordes:
         return False
         
-    # Condición B: Debe ser aproximadamente simétrica (un ancho similar al alto)
-    # Permitiendo un margen (0.7 a 1.3) por la distorsión de la cuadrícula
+    # Condición B: Debe ser aproximadamente simétrica
     aspect_ratio = w_comp / float(h_comp)
     if 0.70 <= aspect_ratio <= 1.40:
         return True
@@ -386,9 +317,7 @@ def tiene_circulo_central(target: np.ndarray) -> bool:
 
 def mutual_information_metric(target_A: np.ndarray, target_B: np.ndarray) -> float:
     """Calcula la Información Mutua Normalizada (NMI)."""
-    # Si las dimensiones no coinciden, redimensionamos B para que encaje con A
     if target_A.shape != target_B.shape:
-        # OpenCV usa (ancho, alto) para el resize
         try:
             target_B_resized = cv2.resize(
                 target_B.astype(np.uint8), 
@@ -403,7 +332,6 @@ def mutual_information_metric(target_A: np.ndarray, target_B: np.ndarray) -> flo
     A = target_A.flatten()
     B = target_B_resized.flatten()
     
-    # Asegurarnos de que tienen el mismo tamaño tras aplanar
     min_len = min(len(A), len(B))
     A = A[:min_len]
     B = B[:min_len]
@@ -434,7 +362,6 @@ def mutual_information_metric(target_A: np.ndarray, target_B: np.ndarray) -> flo
 
 class CBREngine:
     def __init__(self, instanciador):
-        # Conectamos el motor con nuestra memoria RAM de casos
         self.instanciador = instanciador
 
     def extract_features(self, target_matrix: np.ndarray) -> CaracteristicasProblema:
@@ -470,7 +397,6 @@ class CBREngine:
         print(f"[*] Componentes conexas detectadas: {comp_conexas}")
        
 
-        # Construimos el objeto Problema
         problema_actual = CaracteristicasProblema(
             dimensiones=dimension,
             num_estados=num_estados,
@@ -481,7 +407,6 @@ class CBREngine:
             patrones_detectados= patrones,
             componentes_conexas=comp_conexas
         )
-        # Inyectamos los momentos de hu calculados
         problema_actual.momentos_hu = momentos
         
         return problema_actual
@@ -493,9 +418,7 @@ class CBREngine:
         threshold_similarity = 0.55
 
         for caso in casos_disponibles:
-            # --- CÁLCULO DE SIMILITUD DESGLOSADO ---
-            
-            # 1. Similitud Topológica (20%): Propiedades globales del lienzo
+            # 1. Similitud Topológica (20%)
             topo_score = 0.0
             s_h = 1 if caso.problema.franjas_verticales and target_features.franjas_verticales else 0
             s_v = 1 if caso.problema.franjas_horizontales and target_features.franjas_horizontales else 0
@@ -503,24 +426,13 @@ class CBREngine:
             franjas = 1 if "franjas" in caso.problema.patrones_detectados and "franjas" in target_features.patrones_detectados else 0
             circulo = 1 if "circulo" in caso.problema.patrones_detectados and "circulo" in target_features.patrones_detectados else 0
             
-            # Son 4 variables, dividimos entre 5.0
             topo_score = (s_h + s_v + b_u + franjas + circulo) / 5.0
 
-            # 2. Similitud Estructural (40%): La forma y distribución de los datos
+            # 2. Similitud Estructural (50%)
             target_caso = caso.solucion.configuracion.ca.target_state
             
-            # NMI: Similitud estadística (Normal y Rotada 90 grados)
-            sim_mutual_info_1 = mutual_information_metric(target_matrix, target_caso)
-            sim_mutual_info_2 = 0.0 # Por defecto 0
-            
-            if caso.problema.dimensiones == 2:
-                target_caso_rotado = np.rot90(target_caso)
-                sim_mutual_info_2 = mutual_information_metric(target_matrix, target_caso_rotado)*0.75
-                
-            sim_mutual_info = max(sim_mutual_info_1, sim_mutual_info_2)
-            
-            exito_rotacion = False
-            if sim_mutual_info_2 > sim_mutual_info_1: exito_rotacion = True
+            # NMI Directo (sin evaluar rotaciones)
+            sim_mutual_info = mutual_information_metric(target_matrix, target_caso)
 
             # Porcentaje de cada color (Histograma)
             porc_target = porcentaje_color(target_matrix)
@@ -533,18 +445,14 @@ class CBREngine:
             distancia = np.linalg.norm(np.array(porc_target) - np.array(porc_caso))
             sim_histograma = 1.0 / (1.0 + distancia)
 
-            # Momentos de Hu
-            sim_momentos_hu = similitud_hu(target_features.momentos_hu, caso.problema.momentos_hu)
-
             # Componentes conexas
             comp_target = target_features.componentes_conexas
             comp_caso = caso.problema.componentes_conexas
             sim_componentes = 1.0 / (1.0 + abs(comp_target - comp_caso))
 
-            # Son 4 métricas estructurales, dividimos entre 4.0
             forma_score = (sim_mutual_info + sim_histograma + sim_componentes) / 3.0
 
-            # 3. Compatibilidad de Estados (20%): Viabilidad del cromosoma
+            # 3. Compatibilidad de Estados (10%)
             diferencia_estados = abs(target_features.num_estados - caso.problema.num_estados)
             if diferencia_estados == 0:
                 estado_score = 1.0   
@@ -554,13 +462,12 @@ class CBREngine:
                 estado_score = 0.0   
 
             # 4 Compatibilidad de Dimensión (20%)
-            score_dim = target_features.dimensiones == caso.problema.dimensiones
+            score_dim = 1.0 if target_features.dimensiones == caso.problema.dimensiones else 0.0
 
             
             # Puntuación final ponderada
-            score_total = (topo_score * 0.20) + (forma_score * 0.50) + (estado_score * 0.1) + (score_dim*0.2)
+            score_total = (topo_score * 0.20) + (forma_score * 0.50) + (estado_score * 0.10) + (score_dim * 0.20)
             
-            # --- IMPRESIÓN DEL DESGLOSE (Formateado) ---
             print(f"[*] Analizando: {caso.id_caso}")
             print(f"    |-- Topológica  (20%): {topo_score:.2f}  [SimH:{s_h} | SimV:{s_v} | BordeU:{b_u} | Franjas:{franjas} | Circulo:{circulo}]")
             print(f"    |-- Estructural (50%): {forma_score:.2f}  [NMI:{sim_mutual_info:.2f} | Hist:{sim_histograma:.2f} | Comp:{sim_componentes:.2f}]")
@@ -568,27 +475,17 @@ class CBREngine:
             print(f"    |-- Dimensiones (20%): {score_dim:.2f}")
             print(f"    └──> SIMILITUD FINAL:  {score_total:.2f}\n")
 
-            # ... (todo tu código de cálculos de score se queda igual) ...
-            
-            # 1. ATAMOS la rotación a la tupla de este caso específico
-            exito_rotacion_este_caso = sim_mutual_info_2 > sim_mutual_info_1
-            casos_ordenados.append((caso, score_total, exito_rotacion_este_caso))
-
+            casos_ordenados.append((caso, score_total))
 
         casos_ordenados.sort(key=lambda x: x[1], reverse=True)
-        resultados_completos = [c for c in casos_ordenados[:1] if c[1] >= threshold_similarity]
+        resultados_finales = [c for c in casos_ordenados[:1] if c[1] >= threshold_similarity]
 
-        if len(resultados_completos) == 0:
-            resultados_completos = [casos_ordenados[0]]
+        if len(resultados_finales) == 0:
+            resultados_finales = [casos_ordenados[0]]
 
-        mejor_exito_rotacion = resultados_completos[0][2]  # ahora sí corresponde al ganador
-        
-        # 5. Limpiamos la lista para devolverla como espera la fase Reuse: (caso, score)
-        resultados_finales = [(c[0], c[1]) for c in resultados_completos]
-            
-        return resultados_finales, mejor_exito_rotacion
+        return resultados_finales
 
-    def reuse(self, retrieved_cases: List[Tuple[CasoCBR, float]], target_features: CaracteristicasProblema, target_matrix: np.ndarray, colors: np.ndarray, exito_rotacion : bool):
+    def reuse(self, retrieved_cases: List[Tuple[CasoCBR, float]], target_features: CaracteristicasProblema, target_matrix: np.ndarray, colors: np.ndarray):
         print("\n--- FASE 3: REUSE (Adaptación y Promedio) ---")
         
         total_score = sum(score for _, score in retrieved_cases)
@@ -611,25 +508,17 @@ class CBREngine:
 
         nueva_ca.colors = colors
 
-
-
         # --- 1. Inicialización de la semilla (si aplica) ---
         if hasattr(nueva_ca, 'ca_initial_state') and nueva_ca.ca_initial_state is not None:
-            # Se crea el array vacío (funciona igual para 1D que para 2D)
             nueva_ca.ca_initial_state = np.zeros(nueva_ca.ca_size, dtype=int)
             
             if len(nueva_ca.ca_size) > 1 and nueva_ca.ca_size[1] > 1:
-                # CASO 2D: Semilla en el centro de la matriz
                 centro_y = nueva_ca.ca_size[0] // 2
                 centro_x = nueva_ca.ca_size[1] // 2
                 nueva_ca.ca_initial_state[centro_y, centro_x] = 1 
                 print(f"[*] Estado inicial 2D (semilla central) creado en {nueva_ca.ca_size}")
             else:
-                # CASO 1D: Semilla en el centro del vector
                 centro = nueva_ca.ca_size[0] // 2
-                
-                # Ojo: si tu tupla 1D es (70,) se accede con un índice. Si es (70, 1) requiere dos.
-                # Lo hacemos seguro para ambos casos:
                 if len(nueva_ca.ca_size) > 1:
                     nueva_ca.ca_initial_state[centro, 0] = 1
                 else:
@@ -637,95 +526,67 @@ class CBREngine:
                     
                 print(f"[*] Estado inicial 1D (semilla central) creado en posición {centro}")
 
-        # --- 2. Adaptación Dinámica de los Timesteps (Sirve para 1D y 2D) ---
-        # Sacamos esto fuera de los 'if' de arriba para asegurarnos de que SIEMPRE se ejecuta
+        # --- 2. Adaptación Dinámica de los Timesteps ---
         old_shape = top1_case.solucion.configuracion.ca.ca_size
         new_shape = nueva_ca.ca_size
 
-        # Si por algún casual la dimensión se guardó como un int (ej: 70) en vez de tupla, lo controlamos:
         old_iterable = old_shape if isinstance(old_shape, (tuple, list)) else [old_shape]
         new_iterable = new_shape if isinstance(new_shape, (tuple, list)) else [new_shape]
 
-        # Extraemos la dimensión más grande (Funciona para (70,), (70,1) y (18, 30))
         max_dim_old = max(old_iterable)
         max_dim_new = max(new_iterable)
 
-        # Calculamos el ratio de crecimiento
         ratio_crecimiento = max_dim_new / max_dim_old
-
         old_timesteps = top1_case.solucion.configuracion.ca.ca_timesteps
 
-        # Escalamos y redondeamos siempre hacia arriba (ceil)
         nueva_ca.ca_timesteps = math.ceil(old_timesteps * ratio_crecimiento)
 
-        # Escalamos y redondeamos siempre hacia arriba (ceil)
-        nueva_ca.ca_timesteps = math.ceil(old_timesteps * ratio_crecimiento)
-
-     
         if target_features.num_estados == 3 and target_features.dimensiones == 2:
             nueva_ca.ca_neighborhood = 'von Neumann'
-
         elif target_features.dimensiones == 1 and target_features.num_estados == 3:
             nueva_ca.ca_neighborhood = '1' 
         
         if target_features.dimensiones == 1:
             nueva_ca.random_initial_state = False 
             
-            # Analizamos la densidad del color dominante
             porcentajes = porcentaje_color(target_matrix)
-            color_dominante = porcentajes[0] # Ej: 0.90 en Anabaena, 0.50 en Drosophila
+            color_dominante = porcentajes[0]
             
             if color_dominante > 0.80:
                 print("[*] 1D Detectado (Alta pureza): Inyectando estado inicial biológico (baja densidad de ruido).")
-                # Generamos array de ceros (estado 0) con un 5% de mutaciones (estado 1)
                 estado_bio = np.random.choice([0, 1], size=target_matrix.shape, p=[0.95, 0.05])
                 nueva_ca.ca_initial_state = estado_bio
             else:
-                # CASO DROSOPHILA (Equilibrado) -> Ruido puro
                 print("[*] 1D Detectado (Equilibrado): Inyectando estado inicial de ruido aleatorio puro.")
                 nueva_ca.random_initial_state = True
                 nueva_ca.ca_initial_state = None
                 
         else:
-            # --- LÓGICA CLÁSICA PARA 2D (Banderas) ---
             nueva_ca.random_initial_state = not target_features.borde_uniforme
             
             if hasattr(nueva_ca, 'ca_initial_state') and not nueva_ca.random_initial_state:
-                # Semilla central para 2D (ej. Japón, Suiza)
                 nueva_ca.ca_initial_state = np.zeros(nueva_ca.ca_size, dtype=int)
                 centro_y = nueva_ca.ca_size[0] // 2
                 centro_x = nueva_ca.ca_size[1] // 2
                 nueva_ca.ca_initial_state[centro_y, centro_x] = 1 
                 print(f"[*] Estado inicial 2D (semilla central) creado en {nueva_ca.ca_size}")
 
-        # 2. Configuración de fronteras según la dimensión
+        # Configuración de fronteras según la dimensión
         if target_features.dimensiones == 1:
-            # --- CASO 1D: SIEMPRE FIJAMOS LOS EXTREMOS ---
             nueva_ca.ca_horizontal_boundary_conditions = 'fixed'
             nueva_ca.ca_vertical_boundary_conditions = 'fixed'
             
-            # Los extremos son el primer y último elemento de la matriz 1D
             nueva_ca.ca_row0_state = np.array([target_matrix[0]])
             nueva_ca.ca_rowN_state = np.array([target_matrix[-1]])
             
-            # (Aunque sea 1D, rellenamos las columnas por seguridad del Framework)
             nueva_ca.ca_column0_state = np.array([target_matrix[0]])
             nueva_ca.ca_columnN_state = np.array([target_matrix[-1]])
             
         else:
-            # --- CASO 2D: HEREDAMOS Y ADAPTAMOS DEL MEJOR CASO (CBR) ---
-            cond_horiz_orig = top1_case.solucion.configuracion.ca.ca_horizontal_boundary_conditions
-            cond_vert_orig = top1_case.solucion.configuracion.ca.ca_vertical_boundary_conditions
+            # Heredamos directamente las condiciones sin rotación
+            nueva_ca.ca_horizontal_boundary_conditions = top1_case.solucion.configuracion.ca.ca_horizontal_boundary_conditions
+            nueva_ca.ca_vertical_boundary_conditions = top1_case.solucion.configuracion.ca.ca_vertical_boundary_conditions
 
-            # Aplicamos el cruce de fronteras por rotación (si hubo éxito)
-            if exito_rotacion: 
-                nueva_ca.ca_horizontal_boundary_conditions = cond_vert_orig
-                nueva_ca.ca_vertical_boundary_conditions = cond_horiz_orig
-            else:
-                nueva_ca.ca_horizontal_boundary_conditions = cond_horiz_orig
-                nueva_ca.ca_vertical_boundary_conditions = cond_vert_orig
-
-            # Extracción de las filas/columnas para 2D si cayeron en 'fixed'
             if nueva_ca.ca_horizontal_boundary_conditions == 'fixed':
                 nueva_ca.ca_row0_state = target_matrix[0, :].copy()   
                 nueva_ca.ca_rowN_state = target_matrix[-1, :].copy()  
@@ -740,7 +601,7 @@ class CBREngine:
                 nueva_ca.ca_column0_state = None
                 nueva_ca.ca_columnN_state = None
 
-        # 2. Media Ponderada de GAConfig
+        # Media Ponderada de GAConfig
         casos_ga = [c[0].solucion.configuracion.ga for c in retrieved_cases]
         
         nueva_ga.cx_prob = sum(ga.cx_prob * p for ga, p in zip(casos_ga, pesos))
@@ -748,32 +609,27 @@ class CBREngine:
         nueva_ga.pop_size = int(round(sum(ga.pop_size * p for ga, p in zip(casos_ga, pesos))))
         nueva_ga.num_generations = int(round(sum(ga.num_generations * p for ga, p in zip(casos_ga, pesos))))
         
-        # Normalización de métricas
         w_ssim = sum(ga.weight_SSIM * p for ga, p in zip(casos_ga, pesos))
         w_jacc = sum(ga.weight_Jaccard * p for ga, p in zip(casos_ga, pesos))
+        
         if target_features.num_estados == top1_case.problema.num_estados:
             w_states_jacc = copy.deepcopy(top1_case.solucion.configuracion.ga.weights_states_Jaccard)
             print(f"[*] Heredando pesos de estado para Jaccard de {top1_case.id_caso}.")
             
         else:
-            # Le damos MÁS peso a las clases que ocupan MENOS espacio.
             print("[*] Adaptando pesos de estado para Jaccard (diferencia de dimensiones).")
-            
             _, conteos = np.unique(target_matrix, return_counts=True)
             num_pixels = target_matrix.size
             
             w_states_jacc = []
             for c in conteos:
                 proporcion = c / num_pixels
-                # El peso es el inverso de la proporción (ej. si ocupa 80%, su peso es 0.20)
                 peso = 1.0 - proporcion 
                 w_states_jacc.append(peso)
             
-            # Opcional: Normalizar para que sumen 1.0 (si tu función de Jaccard lo requiere)
             suma_pesos = sum(w_states_jacc)
             w_states_jacc = [w / suma_pesos for w in w_states_jacc]
 
-        # Finalmente lo inyectas en tu nueva configuración
         nueva_ga.weights_states_Jaccard = w_states_jacc
         w_acc = sum(ga.weight_accuracy * p for ga, p in zip(casos_ga, pesos))
         w_nmi = sum(ga.weight_mutual_information * p for ga, p in zip(casos_ga, pesos))
@@ -798,53 +654,35 @@ class CBREngine:
         if nueva_ga.adaptative_num_mut:
             nueva_ga.mutation_interval = promediar_arrays([ga.mutation_interval for ga in casos_ga], pesos)
             
-            # --- NORMALIZAR A TASAS ---
             tasas_mutacion_casos = []
             for (caso_tupla, score), ga in zip(retrieved_cases, casos_ga):
                 caso_original = caso_tupla 
-                
                 longitud_historica = caso_original.solucion.configuracion.ca.ind_size
-                
-                # 2. Convertimos sus mutaciones absolutas a porcentajes (Tasas)
-                # Ej: si hacía 5 mutaciones en 32 genes -> tasa = 5 / 32 = 0.156
                 tasa_historica = np.array(ga.num_mutations) / longitud_historica
                 tasas_mutacion_casos.append(tasa_historica)
 
-            # --- PROMEDIAR TASAS ---
             tasa_promedio = promediar_arrays(tasas_mutacion_casos, pesos, is_integer=False)
-            
-            # --- DESNORMALIZAR AL NUEVO PROBLEMA ---
             nueva_longitud = nueva_ca.ind_size
             
-            # Calculamos las nuevas mutaciones absolutas y redondeamos a entero
             mutaciones_adaptadas = np.round(tasa_promedio * nueva_longitud).astype(int)
-            
-            # Seguridad: Si la tasa promedio no era 0, asegurar al menos 1 mutación para no atascar el GA
             mutaciones_adaptadas = np.maximum(mutaciones_adaptadas, 1)
-            
             nueva_ga.num_mutations = mutaciones_adaptadas
 
-        # 3. Inyección Memética (Evaluando compatibilidad de cromosomas)
+        # Inyección Memética (sin alterar por rotación)
         i = 0
         encontrado = False
+        regla_semilla = None
         while i < len(retrieved_cases) and not encontrado:
             vecindario_coincide = retrieved_cases[i][0].solucion.configuracion.ca.ca_neighborhood == nueva_ca.ca_neighborhood
             estados_coinciden = retrieved_cases[i][0].problema.num_estados == target_features.num_estados
             
-            regla_semilla = None
             if vecindario_coincide and estados_coinciden:
                 encontrado = True
                 regla_semilla = retrieved_cases[i][0].solucion.mejor_regla
-                if exito_rotacion:
-                    if nueva_ca.ca_neighborhood == 'Moore':
-                        regla_semilla = rotar_moore(regla_semilla, target_features.num_estados)
-                    elif nueva_ca.ca_neighborhood == 'von Neumann':
-                        regla_semilla = rotar_vonNeumann(regla_semilla, target_features.num_estados)
-
                 print(f"[*] Inyección Memética HABILITADA. Se usará la regla de {retrieved_cases[i][0].id_caso}")
             else:
                 print("[*] Inyección Memética DESCARTADA (incompatibilidad de cromosoma).")
-            i = i + 1
+            i += 1
 
         print("\n" + "="*50)
         print("  RESUMEN DE LA NUEVA CONFIGURACIÓN HEREDADA")
@@ -876,7 +714,6 @@ class CBREngine:
         print(f"  |-- NMI:          {nueva_ga.weight_mutual_information:.3f}")
         print(f"  |-- Accuracy:     {nueva_ga.weight_accuracy:.3f}")
         
-        # Formateamos los pesos de Jaccard para que se vean bonitos
         pesos_jacc_str = "[" + ", ".join([f"{w:.2f}" for w in nueva_ga.weights_states_Jaccard]) + "]"
         print(f"  |-- Pesos por Estado (Jaccard): {pesos_jacc_str}")
         
@@ -909,14 +746,11 @@ class CBREngine:
             else:
                 dibujar_regla_1dim(regla, config.ca)
 
-                
-        
         print(f"[*] Algoritmo finalizado. Fitness máximo alcanzado: {fitness_evolution[-1]:.4f}")
         return fitness_evolution[-1], top3[0]
 
     def retain(self, problem_id: str, features: CaracteristicasProblema, best_rule: List[int], config_final: FrameworkConfig, fitness: float):
         print("\n--- FASE 5: RETAIN (Guardado del conocimiento) ---")
-        '''Este threshold puede ser dinámico en función del tamaño de la memoria del instanciador'''
         fitness_threshold = 0.5
         num_casos = len(self.instanciador.obtener_todos_los_casos())
         if num_casos > 15: fitness_threshold = 0.7
@@ -926,7 +760,6 @@ class CBREngine:
             solucion = SolucionCBR(configuracion=config_final, mejor_regla=best_rule, fitness_alcanzado=fitness)
             nuevo_caso = CasoCBR(id_caso=problem_id, problema=features, solucion=solucion)
             
-            # Mandamos el caso al instanciador para que lo guarde en RAM
             self.instanciador.anadir_nuevo_caso(nuevo_caso)
         else:
             print("[*] Fitness insuficiente para memoria a largo plazo. Descartando caso.")
