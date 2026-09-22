@@ -14,6 +14,11 @@ The `Memory` module stores and retrieves the cases used by the CBR engine.
 - Assign identifiers to successful new cases.
 - Persist and restore cases using `pickle`, preserving NumPy matrices and rule vectors without lossy conversion.
 
+The statistical runner can use a clean, fixed experimental memory containing
+the selected base cases. This is separate from the normal CBR memory and does
+not prevent the application from loading all configured base cases, including
+France and Drosophila.
+
 ## Workflow
 
 1. **Retrieve:** the CBR engine requests the available cases and computes similarities.

@@ -7,6 +7,7 @@ import os
 from HUN import obtener_caso_hungria
 from JPN import obtener_caso_japon
 from FRA import obtener_caso_francia
+from DROSO import obtener_caso_drosophila
 
 # Importamos el modelo para el tipado de datos
 from configuration import CasoCBR
@@ -35,6 +36,7 @@ class InstanciadorCasos:
         self.casos_base.append(obtener_caso_hungria())
         self.casos_base.append(obtener_caso_japon())
         self.casos_base.append(obtener_caso_francia())
+        self.casos_base.append(obtener_caso_drosophila())
         
         print(f"[*] Casos base (semillas) cargados: {len(self.casos_base)}")
 

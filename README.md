@@ -34,6 +34,7 @@ Explore interactive two-dimensional cellular-automaton evolutions in the [Cellul
 | `main.py` | Proposed CBR-based approach |
 | `main_heuristica.py` | Expert-configured baseline |
 | `main_random.py` | Random-search baseline |
+| `run_experiments.py` | Reproducible multi-seed statistical runner |
 
 ## Requirements
 
@@ -76,6 +77,23 @@ python main_random.py
 ```
 
 Runs control experiments with valid parameters selected randomly.
+
+### Statistical evaluation
+
+The repository also includes `run_experiments.py` for reproducible batch
+experiments. It runs five seeds per case and keeps the experimental CBR memory
+fixed during the batch, so learned cases do not leak from one run into another.
+The generated data is written to CSV files:
+
+```bash
+python run_experiments.py
+```
+
+The runner uses a separate `casos_aprendidos_backup.pkl` file and restricts the
+CBR retrieval memory to the fixed Japan and Hungary base cases. It produces
+`resultados_experimentos_nuevos_casos.csv` and `resumen_estadistico.csv`.
+These generated files are intentionally kept outside the source tree until the
+corresponding experiment has been run.
 
 ## Research context
 
