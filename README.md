@@ -82,7 +82,7 @@ Runs control experiments with valid parameters selected randomly.
 
 The repository also includes `run_experiments.py` for reproducible batch
 experiments. It runs five seeds per case and keeps the experimental CBR memory
-fixed during the batch, so learned cases do not leak from one run into another.
+fixed during the batch, so learned cases don't leak from one run into another.
 The generated data is written to CSV files:
 
 ```bash
