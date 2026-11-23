@@ -1,3 +1,5 @@
+import _path_setup
+
 import numpy as np
 from Memoria import InstanciadorCasos
 from MotorCBR import CBREngine

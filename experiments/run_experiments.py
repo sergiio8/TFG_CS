@@ -38,7 +38,6 @@ NUEVO EN ESTA VERSION:
 import time
 import random
 import traceback
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -46,12 +45,7 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")  # evita popups de graficas durante el batch
 
-# The project keeps its modules in separate source directories rather than
-# Python packages. Add those directories so this script can be run from the
-# repository root with `python run_experiments.py`.
-ROOT_DIR = Path(__file__).resolve().parent
-for source_dir in ("Configuration", "Memory", "CBR", "GeneticAlgorithm", "BaseCases2DIM", "Benchmarks1DIM"):
-    sys.path.insert(0, str(ROOT_DIR / source_dir))
+import _path_setup
 
 from Memoria import InstanciadorCasos
 from MotorCBR import CBREngine

@@ -25,16 +25,16 @@ Explore interactive two-dimensional cellular-automaton evolutions in the [Cellul
 
 | Directory | Purpose |
 | --- | --- |
-| [`CBR/`](CBR/README.md) | Retrieve, reuse, revise, and retain logic |
-| [`Configuration/`](Configuration/README.md) | Typed case and experiment configuration |
-| [`GeneticAlgorithm/`](GeneticAlgorithm/README.md) | Evolutionary optimisation strategies |
-| [`Memory/`](Memory/README.md) | Base-case loading and learned-case persistence |
-| [`Benchmarks1DIM/`](Benchmarks1DIM/README.md) | One-dimensional benchmark problems |
-| [`BaseCases2DIM/`](BaseCases2DIM/README.md) | Two-dimensional morphogenesis problems |
-| `main.py` | Proposed CBR-based approach |
-| `main_heuristica.py` | Expert-configured baseline |
-| `main_random.py` | Random-search baseline |
-| `run_experiments.py` | Reproducible multi-seed statistical runner |
+| [`src/CBR/`](src/CBR/README.md) | Retrieve, reuse, revise, and retain logic |
+| [`src/Configuration/`](src/Configuration/README.md) | Typed case and experiment configuration |
+| [`src/GeneticAlgorithm/`](src/GeneticAlgorithm/README.md) | Evolutionary optimisation strategies |
+| [`src/Memory/`](src/Memory/README.md) | Base-case loading and learned-case persistence |
+| [`src/Benchmarks1DIM/`](src/Benchmarks1DIM/README.md) | One-dimensional benchmark problems |
+| [`src/BaseCases2DIM/`](src/BaseCases2DIM/README.md) | Two-dimensional morphogenesis problems |
+| [`experiments/`](experiments/) | Runnable approaches, baselines, and batch runner |
+| [`notebooks/1d/`](notebooks/1d/) / [`notebooks/2d/`](notebooks/2d/) | Self-contained one- and two-dimensional experiments |
+| [`docs/`](docs/) | Bachelor's thesis |
+| [`data/`](data/) | Text export of learned cases |
 
 ## Requirements
 
@@ -54,18 +54,21 @@ python -m pip install -r requirements.txt
 
 ## Running the experiments
 
+Run the scripts from the repository root so generated files (plots, learned
+memory, and experiment CSVs) continue to be written to the working directory.
+
 ### Proposed CBR approach
 
 ```bash
-python main.py
+python experiments/main.py
 ```
 
-This entry point retrieves similar cases, transfers their knowledge, and refines the resulting rule with the evolutionary optimiser. Configure the target problem in `main.py` before running a new experiment.
+This entry point retrieves similar cases, transfers their knowledge, and refines the resulting rule with the evolutionary optimiser. Configure the target problem in `experiments/main.py` before running a new experiment.
 
 ### Expert-configured baseline
 
 ```bash
-python main_heuristica.py
+python experiments/main_heuristica.py
 ```
 
 Runs experiments using manually selected configurations based on prior domain knowledge.
@@ -73,7 +76,7 @@ Runs experiments using manually selected configurations based on prior domain kn
 ### Random baseline
 
 ```bash
-python main_random.py
+python experiments/main_random.py
 ```
 
 Runs control experiments with valid parameters selected randomly.
@@ -86,7 +89,7 @@ fixed during the batch, so learned cases don't leak from one run into another.
 The generated data is written to CSV files:
 
 ```bash
-python run_experiments.py
+python experiments/run_experiments.py
 ```
 
 The runner uses a separate `casos_aprendidos_backup.pkl` file and restricts the
@@ -99,7 +102,7 @@ corresponding experiment has been run.
 
 The framework studies how previously solved cellular-automaton problems can accelerate the discovery of rules for new problems. The included cases cover density classification, stripe formation, embryonic patterning, and geometric morphogenesis.
 
-For the academic background and experimental results, see [`PaperCAEPIASergioGit.pdf`](PaperCAEPIASergioGit.pdf).
+For the academic background and experimental results, see [`docs/PaperCAEPIASergioGit.pdf`](docs/PaperCAEPIASergioGit.pdf). The learned-case text export is available at [`data/casos_aprendidos.txt`](data/casos_aprendidos.txt).
 
 ## License
 
